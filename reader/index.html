@@ -115,6 +115,12 @@ a.gloss:hover{color:var(--accent)}
 .chatbar input{flex:1;padding:11px 14px;font-size:1em;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg)}
 .chatbar button{border:0;border-radius:10px;background:var(--accent);color:#fff;padding:0 18px;font-size:1em;cursor:pointer}
 .blk.srchl>.ko{background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:6px;transition:background .4s}
+/* ---- 이미지 확대(라이트박스) ---- */
+#post img{cursor:zoom-in}
+#lightbox{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}
+#lightbox img{max-width:100%;max-height:100%;height:auto;width:auto;border-radius:6px;box-shadow:0 12px 48px rgba(0,0,0,.6)}
+#lightbox .lbclose{position:fixed;top:12px;right:16px;color:#fff;font-size:1.7em;line-height:1;cursor:pointer;background:none;border:0;padding:8px;opacity:.85}
+#lightbox .lbclose:hover{opacity:1}
 </style>
 </head>
 <body>
@@ -147,6 +153,7 @@ a.gloss:hover{color:var(--accent)}
   <div id="post" class="hidden"></div>
   <div id="gloss" class="hidden"></div>
   <div id="chat" class="hidden"></div>
+  <div id="lightbox" class="hidden"><button class="lbclose" title="닫기">✕</button><img alt=""></div>
 </div>
 
 <script>
@@ -446,6 +453,16 @@ let fs=parseInt(localStorage.getItem('fs')||'18');
 const applyFs=()=>{document.documentElement.style.setProperty('--fs',fs+'px');localStorage.setItem('fs',fs);};
 $('#fsUp').onclick=()=>{fs=Math.min(26,fs+1);applyFs();}; $('#fsDown').onclick=()=>{fs=Math.max(14,fs-1);applyFs();}; applyFs();
 window.addEventListener('scroll',()=>{const h=document.documentElement;const p=h.scrollHeight-h.clientHeight;$('#prog').style.width=(p>0?h.scrollTop/p*100:0)+'%';},{passive:true});
+
+/* ---- 이미지 확대(라이트박스) ---- */
+const lb=$('#lightbox'), lbimg=lb.querySelector('img');
+function closeLb(){ lb.classList.add('hidden'); lbimg.removeAttribute('src'); }
+document.addEventListener('click',e=>{
+  const img=e.target.closest('#post img');
+  if(img){ lbimg.src=img.src; lb.classList.remove('hidden'); }
+});
+lb.addEventListener('click',closeLb);
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!lb.classList.contains('hidden')) closeLb(); });
 
 /* ---- 자동 입장 ---- */
 (async()=>{ const saved=localStorage.getItem('rc')||sessionStorage.getItem('rc');
