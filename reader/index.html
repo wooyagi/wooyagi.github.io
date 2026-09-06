@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Reader</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1f1f1f;--muted:#7a7a7a;--line:#e6e2d8;--accent:#3b5bdb;--card:#fff;--quote:#f1efe8;--en:#8f8f8f;
+  --fs:18px;--font:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif}
+@media(prefers-color-scheme:dark){:root{--bg:#141414;--fg:#e8e6e1;--muted:#9a9a9a;--line:#2a2a2a;--accent:#8ea2ff;--card:#1d1d1d;--quote:#222;--en:#8a8a8a}}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:var(--fs);line-height:1.8;word-break:keep-all;overflow-wrap:anywhere}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.hidden{display:none!important}
+/* ---- 입장 ---- */
+#gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+#gate form{width:100%;max-width:340px;text-align:center}
+#gate h1{font-size:1.4em;margin:0 0 6px}#gate p{color:var(--muted);font-size:.9em;margin:0 0 22px}
+#gate input[type=password]{width:100%;font-size:1.1em;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);text-align:center;letter-spacing:.15em}
+#gate button{width:100%;margin-top:12px;padding:12px;border:0;border-radius:10px;background:var(--accent);color:#fff;font-size:1em;cursor:pointer}
+#gate label{display:block;margin-top:14px;font-size:.85em;color:var(--muted)}
+#gate .err{color:#d33;font-size:.9em;margin-top:12px;min-height:1.4em}
+/* ---- 상단바 ---- */
+.bar{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:8px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top))}
+.bar .grow{flex:1;min-width:0;font-size:.9em;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar button,.bar a.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;padding:5px 10px;font-size:.85em;cursor:pointer;white-space:nowrap}
+.bar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* ---- 목록 ---- */
+#list{max-width:940px;margin:0 auto;padding:22px 18px 70px}
+.hero{margin:6px 2px 22px}
+.hero h1{font-size:1.7em;font-weight:800;letter-spacing:-.02em;margin:0 0 6px;display:flex;align-items:center;gap:10px}
+.hero p{color:var(--muted);font-size:.95em;margin:0}
+.searchwrap{position:relative;margin-bottom:14px}
+.searchwrap::before{content:"🔍";position:absolute;left:15px;top:50%;transform:translateY(-50%);font-size:.95em;opacity:.55}
+#list input{width:100%;padding:13px 16px 13px 42px;font-size:1em;border:1px solid var(--line);border-radius:13px;background:var(--card);color:var(--fg);transition:border-color .15s,box-shadow .15s}
+#list input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:.85em;color:var(--muted);cursor:pointer;background:var(--card);transition:all .12s;display:inline-flex;align-items:center;gap:5px}
+.chip:hover{border-color:var(--accent);color:var(--fg)}
+.chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg);font-weight:600}
+.pubchips{margin-bottom:20px}.pubchips .chip{font-size:.8em;padding:4px 12px}
+.sect{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.15em;margin:30px 2px 14px;letter-spacing:-.01em}
+.sect:first-of-type{margin-top:10px}
+.sect .semoji{font-size:1.05em}
+.sect .cnt{font-weight:500;font-size:.72em;color:var(--muted);background:var(--quote);border-radius:999px;padding:2px 9px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:13px}
+.card{position:relative;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:17px 18px 15px;color:inherit;overflow:hidden;transition:transform .14s,box-shadow .14s,border-color .14s}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--cardc,var(--accent))}
+.card:hover{text-decoration:none;transform:translateY(-3px);box-shadow:0 10px 26px -12px color-mix(in srgb,var(--cardc,var(--accent)) 55%,transparent);border-color:color-mix(in srgb,var(--cardc,var(--accent)) 45%,var(--line))}
+.card .badge{display:inline-flex;align-items:center;gap:6px;font-size:.72em;font-weight:700;color:var(--cardc,var(--accent));margin-bottom:9px}
+.card .badge .dot{width:20px;height:20px;border-radius:7px;display:grid;place-items:center;font-size:.82em;background:color-mix(in srgb,var(--cardc,var(--accent)) 15%,transparent)}
+.card .t{font-size:1.08em;font-weight:700;line-height:1.4;margin:0 0 6px;letter-spacing:-.01em}
+.card .s{font-size:.9em;color:var(--muted);line-height:1.55;margin:0 0 12px;flex:1}
+.card .m{font-size:.78em;color:var(--muted);display:flex;align-items:center;gap:6px;padding-top:11px;border-top:1px solid var(--line)}
+.card.read{opacity:.72}.card.read .t{font-weight:600}
+.card .readmark{margin-left:auto;font-size:.72em;color:var(--cardc,var(--accent))}
+.count{color:var(--muted);font-size:.85em;margin:0 2px 14px}
+/* ---- 본문 ---- */
+#post{max-width:680px;margin:0 auto;padding:28px 20px 80px}
+#post .pub{color:var(--muted);font-size:.85em}
+#post h1{font-size:1.75em;line-height:1.3;margin:6px 0 8px;word-break:keep-all}
+#post .sub{color:var(--muted);font-size:1.05em;line-height:1.5;margin:0 0 10px}
+#post .meta{color:var(--muted);font-size:.85em;padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:26px}
+#post h2{font-size:1.35em;margin:1.8em 0 .5em;line-height:1.35}#post h3{font-size:1.15em;margin:1.5em 0 .4em}
+#post p{margin:0 0 1.15em}#post ul,#post ol{padding-left:1.3em;margin:0 0 1.15em}#post li{margin:.3em 0}
+#post blockquote{margin:0 0 1.15em;padding:12px 16px;background:var(--quote);border-left:3px solid var(--accent);border-radius:0 8px 8px 0}
+#post blockquote p:last-child{margin:0}
+#post pre{background:var(--quote);padding:12px;border-radius:8px;overflow-x:auto;font-size:.85em}
+#post table{border-collapse:collapse;font-size:.85em;margin:0 0 1.15em;display:block;overflow-x:auto}#post td,#post th{border:1px solid var(--line);padding:5px 9px}
+#post hr{border:0;border-top:1px solid var(--line);margin:2em 0}
+#post figure{margin:1.4em 0}#post img{width:100%;height:auto;border-radius:8px;display:block}
+#post figcaption{color:var(--muted);font-size:.82em;text-align:center;margin-top:8px;line-height:1.5}
+.blk{position:relative}.blk .en{display:none;color:var(--en);font-size:.85em;line-height:1.65;margin:-.6em 0 1.2em;padding:8px 12px;border-left:2px solid var(--line)}
+.blk .en p{margin:0 0 .5em}.blk .en p:last-child{margin:0}
+.blk.open .en,body.showen .blk .en{display:block}
+.blk .ko{cursor:pointer}
+.hint{text-align:center;color:var(--muted);font-size:.8em;margin:-8px 0 20px}
+.summary{background:var(--quote);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:0 0 30px;font-size:.95em}
+.summary .slabel{font-weight:700;font-size:.82em;letter-spacing:.08em;color:var(--accent);margin-bottom:8px}
+.summary ul{margin:.4em 0 0;padding-left:1.15em}.summary li{margin:.45em 0}.summary p{margin:0 0 .8em}.summary p:last-child{margin-bottom:0}
+.progress{position:fixed;left:0;top:0;height:2px;background:var(--accent);width:0;z-index:6}
+/* ---- 용어집 ---- */
+a.gloss{color:inherit;text-decoration:none;border-bottom:1px dotted var(--accent);cursor:help}
+a.gloss:hover{color:var(--accent)}
+#gloss{max-width:720px;margin:0 auto;padding:20px 16px 80px}
+#gloss h2{font-size:1.35em;margin:6px 0 4px}#gloss .lead{color:var(--muted);font-size:.9em;margin:0 0 16px}
+#gloss input{width:100%;padding:11px 14px;font-size:1em;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);margin-bottom:14px}
+.gcat{font-weight:700;font-size:.82em;letter-spacing:.06em;color:var(--accent);margin:22px 2px 6px;text-transform:uppercase}
+.gentry{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;scroll-margin-top:70px}
+.gentry .gt{font-weight:700;font-size:1.02em;margin-bottom:5px}
+.gentry .gd{font-size:.92em;line-height:1.65;color:var(--fg)}
+.gentry.hl{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+/* ---- 챗봇 ---- */
+#chat{max-width:720px;margin:0 auto;padding:16px 16px 120px}
+#chat h2{font-size:1.3em;margin:6px 0 4px}#chat .lead{color:var(--muted);font-size:.9em;margin:0 0 14px}
+.starters{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px}
+.starter{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:7px 13px;font-size:.86em;cursor:pointer}
+.starter:hover{border-color:var(--accent);color:var(--accent)}
+.qa{margin:0 0 22px}
+.bubble{background:var(--accent);color:#fff;border-radius:14px 14px 4px 14px;padding:10px 14px;font-size:.95em;max-width:85%;margin-left:auto;width:fit-content}
+.ans{background:var(--card);border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:14px 16px;margin-top:10px;font-size:.95em;line-height:1.7}
+.ans .sec{font-weight:700;font-size:.8em;letter-spacing:.05em;color:var(--accent);margin:14px 0 7px;text-transform:uppercase}
+.ans .sec:first-child{margin-top:0}
+.ans .gdef{margin:0 0 8px}.ans .gdef b{color:var(--fg)}
+.src{display:block;border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin:7px 0;color:inherit;background:var(--bg)}
+.src:hover{border-color:var(--accent);text-decoration:none}
+.src .st{font-size:.76em;color:var(--muted);margin-bottom:3px}
+.src .sx{font-size:.9em;line-height:1.55}
+.src .go{font-size:.76em;color:var(--accent);margin-top:5px}
+.ans .note{color:var(--muted);font-size:.82em;margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+.chatbar{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
+.chatbar form{max-width:720px;margin:0 auto;display:flex;gap:8px}
+.chatbar input{flex:1;padding:11px 14px;font-size:1em;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg)}
+.chatbar button{border:0;border-radius:10px;background:var(--accent);color:#fff;padding:0 18px;font-size:1em;cursor:pointer}
+.blk.srchl>.ko{background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:6px;transition:background .4s}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <form id="gateForm">
+    <h1>Reader</h1>
+    <p>입장 코드를 입력하세요</p>
+    <input type="password" id="code" autocomplete="current-password" placeholder="••••••" autofocus>
+    <button type="submit">열기</button>
+    <label style="color:var(--muted);font-size:.82em">한 번 입력하면 이 기기에서 계속 기억됩니다</label>
+    <div class="err" id="err"></div>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <div class="progress" id="prog"></div>
+  <div class="bar">
+    <button id="back" class="hidden">← 목록</button>
+    <div class="grow" id="barTitle">번역 아카이브</div>
+    <button id="chatBtn" title="아티클에게 질문하기">💬 질문</button>
+    <button id="glossBtn" title="용어집">📖 용어</button>
+    <button id="fsDown" title="글자 작게">A−</button>
+    <button id="fsUp" title="글자 크게">A+</button>
+    <button id="toggleEn" title="모든 문단의 원문 표시">원문</button>
+    <a id="orig" class="btn hidden" target="_blank" rel="noopener">↗</a>
+    <button id="lock" title="잠그기">🔒</button>
+  </div>
+  <div id="list"></div>
+  <div id="post" class="hidden"></div>
+  <div id="gloss" class="hidden"></div>
+  <div id="chat" class="hidden"></div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+let KEY=null, META=null, INDEX=[], CACHE={}, filterPub='', filterTopic='', q='';
+let GLOSS=[], GMAP={}, gq='';
+const TOPICS={
+  "메모리·HBM":{e:"🧠",c:"#6366f1"}, "NVIDIA·AI 인프라":{e:"🟩",c:"#22c55e"},
+  "반도체 패키징":{e:"📦",c:"#f59e0b"}, "광통신·인터커넥트":{e:"💡",c:"#06b6d4"},
+  "네트워킹·SerDes":{e:"🔌",c:"#10b981"}, "AI 인프라·데이터센터":{e:"🏭",c:"#8b5cf6"},
+  "전력·에너지":{e:"⚡",c:"#ef4444"}, "반도체·투자 전략":{e:"📈",c:"#3b82f6"}, "제조·수율":{e:"🔬",c:"#0ea5e9"}
+};
+const tmeta=t=>TOPICS[t]||{e:"📄",c:"#94a3b8"};
+let CORPUS=[], CHAT=[], pendingBlock=null;
+let prevHash='', viewBack='';   // viewBack: 현재 화면의 '뒤로' 목적지
+let currentPostSlug='', postScrollSlug='', postScrollY=0;   // 글 읽던 스크롤 위치 복원용
+
+async function deriveKey(code, saltB64, iter){
+  const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(code),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(saltB64),iterations:iter,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['decrypt']);
+}
+async function decrypt(blobB64){
+  const buf=b64(blobB64); const iv=buf.slice(0,12), ct=buf.slice(12);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv},KEY,ct);
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function fetchText(p){const r=await fetch(p,{cache:'no-store'});if(!r.ok)throw new Error(p+' '+r.status);return r.text();}
+
+async function unlock(code){
+  META=META||JSON.parse(await fetchText('meta.json'));
+  KEY=await deriveKey(code,META.salt,META.iter);
+  INDEX=await decrypt(await fetchText('index.enc'));   // 코드가 틀리면 여기서 throw
+  if(META.glossary){
+    try{
+      GLOSS=await decrypt(await fetchText('glossary.enc'));
+      GMAP={}; GLOSS.forEach(g=>GMAP[g.id]=g);
+    }catch(e){ GLOSS=[]; }
+  }
+  if(META.search){
+    try{ CORPUS=await decrypt(await fetchText('search.enc')); }catch(e){ CORPUS=[]; }
+  }
+}
+$('#gateForm').addEventListener('submit',async e=>{
+  e.preventDefault(); $('#err').textContent='';
+  const code=$('#code').value.trim(); if(!code)return;
+  $('#gate button').textContent='확인 중…';
+  try{ await unlock(code);
+    localStorage.setItem('rc',code);   // 항상 기억 — 다음 방문부터 자동 입장
+    enter();
+  }catch(err){ $('#err').textContent='코드가 맞지 않습니다'; $('#gate button').textContent='열기'; }
+});
+$('#lock').onclick=()=>{localStorage.removeItem('rc');sessionStorage.removeItem('rc');location.hash='';location.reload();};
+
+function enter(){ $('#gate').classList.add('hidden'); $('#app').classList.remove('hidden'); route(); }
+window.addEventListener('hashchange',route);
+function backLabel(h){ return h.startsWith('#/p/')?'← 글로':h==='#/chat'?'← 질문':h==='#/glossary'?'← 용어집':'← 목록'; }
+function route(){
+  const g=location.hash.match(/^#\/g\/(.+)$/);
+  const gl=location.hash.match(/^#\/glossary$/);
+  const c=location.hash.match(/^#\/chat$/);
+  const m=location.hash.match(/^#\/p\/([^~]+)(?:~b(\d+))?$/);
+  const from=prevHash;   // 이 화면으로 오기 직전 위치
+  if(from.startsWith('#/p/')){ postScrollY=window.scrollY; postScrollSlug=currentPostSlug; }   // 글에서 벗어날 때 읽던 위치 저장
+  if(g){ viewBack=from.startsWith('#/p/')||from==='#/chat'?from:''; showGloss(decodeURIComponent(g[1])); }
+  else if(gl){ viewBack=from.startsWith('#/p/')||from==='#/chat'?from:''; showGloss(); }
+  else if(c){ viewBack=''; showChat(); }
+  else if(m){ viewBack=from==='#/chat'?'#/chat':''; pendingBlock=m[2]!==undefined?parseInt(m[2]):null; openPost(decodeURIComponent(m[1])); }
+  else { viewBack=''; showList(); }
+  prevHash=location.hash;
+}
+$('#glossBtn').onclick=()=>{location.hash='#/glossary';};
+$('#chatBtn').onclick=()=>{location.hash='#/chat';};
+
+/* ---- 목록 ---- */
+function showList(){
+  $('#post').classList.add('hidden'); $('#gloss').classList.add('hidden'); $('#chat').classList.add('hidden'); $('#list').classList.remove('hidden'); $('#back').classList.add('hidden'); $('#orig').classList.add('hidden');
+  $('#barTitle').textContent=`번역 아카이브 · ${INDEX.length}편`;
+  const pubs=[...new Set(INDEX.map(a=>a.publication))];
+  const topics=[...new Set(INDEX.flatMap(a=>a.topics||[]))];
+  const read=JSON.parse(localStorage.getItem('read')||'{}');
+  const items=INDEX.filter(a=>(!filterPub||a.publication===filterPub)
+    &&(!filterTopic||(a.topics||[]).includes(filterTopic))
+    &&(!q||(a.title+a.subtitle+(a.tagline||'')+a.author+(a.topics||[]).join(' ')).toLowerCase().includes(q)));
+  const card=a=>{const m=tmeta((a.topics&&a.topics[0])||'');
+    return `<a class="card ${read[a.slug]?'read':''}" style="--cardc:${m.c}" href="#/p/${encodeURIComponent(a.slug)}">
+      <div class="badge"><span class="dot">${m.e}</span>${(a.topics&&a.topics[0])||a.publication}</div>
+      <div class="t">${a.title}</div>
+      ${a.tagline?`<div class="s">${a.tagline}</div>`:''}
+      <div class="m">✍ ${a.author||a.publication} · ${a.date}${read[a.slug]?'<span class="readmark">✓ 읽음</span>':''}</div></a>`;};
+  const grid=arr=>`<div class="grid">${arr.map(card).join('')}</div>`;
+  let body;
+  if(!filterTopic&&!q&&topics.length){          // 기본 화면: 주제별 섹션으로 묶어서
+    const groups={};
+    items.forEach(a=>{const t=(a.topics&&a.topics[0])||'기타';(groups[t]=groups[t]||[]).push(a);});
+    body=Object.entries(groups).sort((x,y)=>y[1].length-x[1].length)
+      .map(([t,arr])=>{const m=tmeta(t);
+        return `<div class="sect"><span class="semoji">${m.e}</span>${t}<span class="cnt">${arr.length}</span></div>`+grid(arr);}).join('');
+  }else{
+    body=`<p class="count">${items.length}편</p>`+(items.length?grid(items):'<p class="hint">해당하는 글이 없습니다</p>');
+  }
+  $('#list').innerHTML=`
+    <div class="hero"><h1>📚 나의 번역 아카이브</h1><p>구독 중인 뉴스레터를 한국어로 — 총 ${INDEX.length}편, 주제별로 정리했습니다.</p></div>
+    <div class="searchwrap"><input id="q" placeholder="제목·주제·필자 검색" value="${q}"></div>
+    <div class="chips"><span class="chip ${!filterTopic?'on':''}" data-t="">전체</span>${topics.map(t=>{const m=tmeta(t);return `<span class="chip ${filterTopic===t?'on':''}" data-t="${t}">${m.e} ${t}</span>`;}).join('')}</div>`+
+    (pubs.length>1?`<div class="chips pubchips"><span class="chip ${!filterPub?'on':''}" data-p="">✍ 모든 발행처</span>${pubs.map(p=>`<span class="chip ${filterPub===p?'on':''}" data-p="${p}">${p}</span>`).join('')}</div>`:'')+
+    (body||'<p class="hint">해당하는 글이 없습니다</p>');
+  $('#q').oninput=e=>{q=e.target.value.toLowerCase();showList();$('#q').focus();$('#q').setSelectionRange(q.length,q.length);};
+  document.querySelectorAll('.chip[data-t]').forEach(c=>c.onclick=()=>{filterTopic=c.dataset.t;showList();});
+  document.querySelectorAll('.chip[data-p]').forEach(c=>c.onclick=()=>{filterPub=c.dataset.p;showList();});
+  window.scrollTo(0,0);
+}
+
+/* ---- 본문 ---- */
+async function openPost(slug){
+  const meta=INDEX.find(a=>a.slug===slug); if(!meta){location.hash='';return;}
+  currentPostSlug=slug;
+  $('#list').classList.add('hidden'); $('#gloss').classList.add('hidden'); $('#chat').classList.add('hidden'); $('#post').classList.remove('hidden'); $('#back').classList.remove('hidden');
+  $('#back').textContent=backLabel(viewBack);
+  $('#barTitle').textContent=meta.title; $('#post').innerHTML='<p class="hint">불러오는 중…</p>';
+  try{ CACHE[slug]=CACHE[slug]||await decrypt(await fetchText(`posts/${slug}.enc`)); }
+  catch(e){ $('#post').innerHTML='<p class="hint">글을 불러오지 못했습니다</p>'; return; }
+  const a=CACHE[slug];
+  const blocks=a.blocks.map((b,i)=>{
+    if(b.type==='hr')return '<hr>';
+    if(b.type==='image')return `<figure id="b-${i}"><img src="${b.src}" alt="${b.alt||''}" loading="lazy">${b.ko||b.caption?`<figcaption>${b.ko||b.caption}</figcaption>`:''}</figure>`;
+    const tag=/^(h[1-6]|blockquote|ul|ol|pre|table)$/.test(b.type)?b.type:'p';
+    const ko=b.ko&&b.ko.trim().startsWith('<')?b.ko:`<${tag}>${b.ko||''}</${tag}>`;
+    return `<div class="blk" id="b-${i}"><div class="ko">${ko}</div><div class="en">${b.html}</div></div>`;
+  }).join('');
+  $('#post').innerHTML=`<div class="pub">${a.publication}</div><h1>${a.title}</h1>${a.subtitle?`<p class="sub">${a.subtitle}</p>`:''}
+    <div class="meta">✍ ${a.author||a.publication} · ${a.date} · <a href="${a.url}" target="_blank" rel="noopener">원문 열기 ↗</a></div>
+    ${a.summary?`<div class="summary"><div class="slabel">핵심 요약 — 투자 포인트</div>${a.summary}</div>`:''}
+    <p class="hint">문단을 누르면 원문이 펼쳐집니다</p>${blocks}
+    <p class="hint" style="margin-top:40px"><a href="#/">← 목록으로</a></p>`;
+  $('#orig').href=a.url; $('#orig').classList.remove('hidden');
+  resetGlossUsage();
+  document.querySelectorAll('#post .blk .ko').forEach(el=>autoLinkGloss(el));   // 어려운 용어 자동 링크
+  document.querySelectorAll('.blk .ko').forEach(el=>el.onclick=e=>{ if(e.target.closest('a'))return; el.parentElement.classList.toggle('open'); });
+  const read=JSON.parse(localStorage.getItem('read')||'{}'); read[slug]=1; localStorage.setItem('read',JSON.stringify(read));
+  if(pendingBlock!=null){
+    const el=document.getElementById('b-'+pendingBlock);
+    if(el){ el.scrollIntoView({block:'center'}); el.classList.add('srchl'); setTimeout(()=>el.classList.remove('srchl'),2200); }
+    else window.scrollTo(0,0);
+    pendingBlock=null;
+  } else if(slug===postScrollSlug){          // 용어집 등에서 돌아옴 → 읽던 위치 복원
+    window.scrollTo(0,postScrollY); postScrollSlug='';
+  } else window.scrollTo(0,0);
+}
+
+/* ---- 용어집 자동 링크: 본문 텍스트 노드에서 용어 첫 등장을 클릭 가능하게 ---- */
+const gUsed=new Set();   // 글 단위로 용어당 한 번만 링크
+function resetGlossUsage(){ gUsed.clear(); }
+function autoLinkGloss(root){
+  if(!GLOSS.length) return;
+  const entries=[];
+  GLOSS.forEach(g=>(g.match||[]).forEach(m=>{ if(m&&m.length>=2) entries.push({m,id:g.id}); }));
+  const walker=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(n){
+      if(!n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+      if(n.parentElement.closest('a')) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }});
+  const nodes=[]; let x; while(x=walker.nextNode()) nodes.push(x);
+  for(let cur of nodes){
+    while(cur){
+      const text=cur.nodeValue; let best=null;
+      for(const {m,id} of entries){
+        if(gUsed.has(id)) continue;
+        const idx=text.indexOf(m);
+        if(idx>=0 && (!best || idx<best.idx || (idx===best.idx && m.length>best.m.length))) best={idx,m,id};
+      }
+      if(!best) break;
+      const parent=cur.parentNode;
+      const after=document.createTextNode(text.slice(best.idx+best.m.length));
+      const link=document.createElement('a');
+      link.className='gloss'; link.href='#/g/'+best.id; link.textContent=best.m;
+      link.title='용어 풀이 보기';
+      parent.insertBefore(document.createTextNode(text.slice(0,best.idx)), cur);
+      parent.insertBefore(link, cur);
+      parent.insertBefore(after, cur);
+      parent.removeChild(cur);
+      gUsed.add(best.id); cur=after;
+    }
+  }
+}
+$('#toggleEn').onclick=()=>{document.body.classList.toggle('showen');$('#toggleEn').classList.toggle('on');};
+
+/* ---- 용어집 화면 ---- */
+function showGloss(targetId){
+  $('#list').classList.add('hidden'); $('#post').classList.add('hidden'); $('#gloss').classList.remove('hidden');
+  $('#back').classList.remove('hidden'); $('#orig').classList.add('hidden');
+  $('#back').textContent=backLabel(viewBack);
+  $('#barTitle').textContent='용어집';
+  if(!GLOSS.length){ $('#gloss').innerHTML='<p class="hint">용어집이 아직 없습니다</p>'; return; }
+  const items=GLOSS.filter(g=>!gq||((g.term+g.def+(g.match||[]).join(' ')).toLowerCase().includes(gq)));
+  const cats=[...new Set(items.map(g=>g.cat||'기타'))];
+  const body=cats.map(c=>`<div class="gcat">${c}</div>`+
+    items.filter(g=>(g.cat||'기타')===c).map(g=>
+      `<div class="gentry" id="g-${g.id}"><div class="gt">${g.term}</div><div class="gd">${wikiLinks(g.def)}</div></div>`).join('')
+    ).join('');
+  $('#gloss').innerHTML=`<h2>📖 용어집</h2><p class="lead">여러 글에 나오는 어려운 개념을 쉽게 풀었습니다. 본문에서 점선 밑줄 친 단어를 누르면 이 페이지의 해당 항목으로 이동합니다.</p>
+    <input id="gq" placeholder="용어 검색" value="${gq}">${body||'<p class="hint">해당하는 용어가 없습니다</p>'}`;
+  $('#gq').oninput=e=>{gq=e.target.value.toLowerCase();showGloss(targetId);$('#gq').focus();$('#gq').setSelectionRange(gq.length,gq.length);};
+  if(targetId){
+    const el=$('#g-'+CSS.escape(targetId));
+    if(el){ el.scrollIntoView({block:'center'}); el.classList.add('hl'); setTimeout(()=>el.classList.remove('hl'),2000); }
+    else window.scrollTo(0,0);
+  }else window.scrollTo(0,0);
+}
+// '← ' 버튼: 각 화면의 직전 위치(viewBack)로
+$('#back').onclick=()=>{ location.hash=viewBack||''; };
+
+/* ---- 챗봇 (아티클 기반 검색형) ---- */
+const esc=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function wikiLinks(html){ return (html||'').replace(/\[\[([a-z0-9-]+)\]\]/g,(m,id)=>GMAP[id]?`<a class="gloss" href="#/g/${id}">${esc(GMAP[id].term.split(' (')[0])}</a>`:''); }
+function tokenize(s){ return (s.toLowerCase().match(/[a-z0-9]+|[가-힣]{2,}/g)||[]); }
+function scoreText(text,terms){
+  const low=text.toLowerCase(); let s=0;
+  for(const t of terms){
+    let idx=0,c=0; while((idx=low.indexOf(t,idx))>=0){c++;idx+=t.length;}
+    if(c) s+=c*Math.min(t.length,4);
+    else if(t.length>=3 && /[가-힣]/.test(t) && low.includes(t.slice(0,-1))) s+=1; // 어미 변화 보정
+  }
+  return s;
+}
+function snippet(text,terms){
+  let pos=-1; const low=text.toLowerCase();
+  for(const t of terms){ const p=low.indexOf(t); if(p>=0&&(pos<0||p<pos))pos=p; }
+  let start=Math.max(0,pos-60); let seg=text.slice(start,start+200);
+  if(start>0)seg='…'+seg; if(start+200<text.length)seg=seg+'…';
+  let h=esc(seg);
+  const uniq=[...new Set(terms)].filter(t=>t.length>=2).sort((a,b)=>b.length-a.length);
+  for(const t of uniq){ h=h.replace(new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark>$1</mark>'); }
+  return h;
+}
+function retrieve(q){
+  const terms=tokenize(q), ql=q.toLowerCase();
+  const gHits=GLOSS.filter(g=>(g.match||[]).some(m=>ql.includes(m.toLowerCase()))).slice(0,4);
+  const scored=[];
+  CORPUS.forEach(a=>a.chunks.forEach(ch=>{
+    let sc=scoreText(ch.t,terms); if(!sc)return;
+    if(/^h/.test(ch.type))sc*=0.85;
+    if(scoreText(a.title,terms))sc+=1.5;
+    scored.push({slug:a.slug,title:a.title,author:a.author,pub:a.publication,i:ch.i,t:ch.t,sc});
+  }));
+  scored.sort((x,y)=>y.sc-x.sc);
+  return {terms,gHits,sources:scored.slice(0,5)};
+}
+function answerHTML(q){
+  const {terms,gHits,sources}=retrieve(q);
+  if(!gHits.length && !sources.length)
+    return `<div class="ans">음… 올려둔 아티클에서 관련 내용을 찾지 못했어요. 다른 표현으로 물어보시거나, 용어(예: HBM, CPO, 패키징)를 넣어보세요.</div>`;
+  let h='<div class="ans">';
+  if(gHits.length){
+    h+='<div class="sec">🔑 쉬운 설명</div>';
+    gHits.forEach(g=>h+=`<div class="gdef"><b>${esc(g.term)}</b> — ${wikiLinks(g.def)}</div>`);
+  }
+  if(sources.length){
+    h+='<div class="sec">📄 아티클에서 찾은 근거</div>';
+    sources.forEach(s=>h+=`<a class="src" href="#/p/${encodeURIComponent(s.slug)}~b${s.i}">
+      <div class="st">✍ ${esc(s.author||s.pub)} · ${esc(s.title)}</div>
+      <div class="sx">${snippet(s.t,terms)}</div>
+      <div class="go">이 문단으로 이동 →</div></a>`);
+  }
+  h+='<div class="note">이 답변은 올려둔 아티클 '+CORPUS.length+'편에서 직접 찾아 정리한 내용입니다. 정확한 맥락은 근거 문단을 눌러 원문에서 확인하세요.</div>';
+  return h+'</div>';
+}
+const STARTERS=["HBM이 뭐야?","NVHBM이 왜 중요해?","첨단 패키징이 왜 중요해?","CPO가 뭐야?","지금 메모리에서 뭘 봐야 해?"];
+function showChat(){
+  $('#list').classList.add('hidden'); $('#post').classList.add('hidden'); $('#gloss').classList.add('hidden'); $('#chat').classList.remove('hidden');
+  $('#back').classList.remove('hidden'); $('#orig').classList.add('hidden'); $('#back').textContent='← 목록';
+  $('#barTitle').textContent='아티클에게 질문';
+  renderChat();
+}
+function renderChat(){
+  const conv=CHAT.map(t=>`<div class="qa"><div class="bubble">${esc(t.q)}</div>${t.a}</div>`).join('');
+  $('#chat').innerHTML=`<h2>💬 아티클에게 질문하기</h2>
+    <p class="lead">올려둔 ${CORPUS.length}편의 글을 통틀어 찾아, 쉽게 정리하고 근거가 된 아티클 문단을 함께 보여줍니다.</p>
+    ${CHAT.length?'':`<div class="starters">${STARTERS.map(s=>`<span class="starter">${esc(s)}</span>`).join('')}</div>`}
+    <div id="conv">${conv}</div>
+    <div class="chatbar"><form id="chatForm"><input id="chatIn" placeholder="예: HBM이 뭐야?" autocomplete="off"><button type="submit">보내기</button></form></div>`;
+  document.querySelectorAll('.starter').forEach(el=>el.onclick=()=>ask(el.textContent));
+  $('#chatForm').onsubmit=e=>{e.preventDefault(); const v=$('#chatIn').value.trim(); if(v)ask(v);};
+  if(CHAT.length) window.scrollTo(0,document.body.scrollHeight);
+  else $('#chatIn') && $('#chatIn').focus();
+}
+function ask(q){
+  CHAT.push({q, a:answerHTML(q)});
+  renderChat();
+  const conv=$('#conv'); if(conv){ const last=conv.lastElementChild; if(last)last.scrollIntoView({block:'start'}); }
+  const inp=$('#chatIn'); if(inp){inp.value=''; inp.focus();}
+}
+
+/* ---- 글자 크기 / 진행바 ---- */
+let fs=parseInt(localStorage.getItem('fs')||'18');
+const applyFs=()=>{document.documentElement.style.setProperty('--fs',fs+'px');localStorage.setItem('fs',fs);};
+$('#fsUp').onclick=()=>{fs=Math.min(26,fs+1);applyFs();}; $('#fsDown').onclick=()=>{fs=Math.max(14,fs-1);applyFs();}; applyFs();
+window.addEventListener('scroll',()=>{const h=document.documentElement;const p=h.scrollHeight-h.clientHeight;$('#prog').style.width=(p>0?h.scrollTop/p*100:0)+'%';},{passive:true});
+
+/* ---- 자동 입장 ---- */
+(async()=>{ const saved=localStorage.getItem('rc')||sessionStorage.getItem('rc');
+  if(saved){ try{ await unlock(saved); enter(); return; }catch(e){ localStorage.removeItem('rc'); sessionStorage.removeItem('rc'); } }
+  $('#code').focus(); })();
+</script>
+</body>
+</html>
