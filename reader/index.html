@@ -114,6 +114,9 @@ a.gloss:hover{color:var(--accent)}
 .src .sx{font-size:.9em;line-height:1.55}
 .src .go{font-size:.76em;color:var(--accent);margin-top:5px}
 .ans .note{color:var(--muted);font-size:.82em;margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+.ans .genbody{line-height:1.75}.ans .genbody p{margin:0 0 .7em}.ans .genbody p:last-child{margin:0}
+.ans .thinking{color:var(--muted)}.ans .thinking::after{content:'';animation:dots 1.2s steps(4,end) infinite}
+@keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
 .chatbar{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
 .chatbar form{max-width:720px;margin:0 auto;display:flex;gap:8px}
 .chatbar input{flex:1;padding:11px 14px;font-size:1em;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg)}
@@ -407,6 +410,13 @@ function retrieve(q){
   scored.sort((x,y)=>y.sc-x.sc);
   return {terms,gHits,sources:scored.slice(0,5)};
 }
+function srcCards(sources,terms){
+  return sources.map(s=>`<a class="src" href="#/p/${encodeURIComponent(s.slug)}~b${s.i}">
+      <div class="st">✍ ${esc(s.author||s.pub)} · ${esc(s.title)}</div>
+      <div class="sx">${snippet(s.t,terms)}</div>
+      <div class="go">이 문단으로 이동 →</div></a>`).join('');
+}
+// 검색형(무료) 답변
 function answerHTML(q){
   const {terms,gHits,sources}=retrieve(q);
   if(!gHits.length && !sources.length)
@@ -414,16 +424,21 @@ function answerHTML(q){
   let h='<div class="ans">';
   if(gHits.length){
     h+='<div class="sec">🔑 쉬운 설명</div>';
-    gHits.forEach(g=>h+=`<div class="gdef"><b>${esc(g.term)}</b> — ${wikiLinks(g.def)}</div>`);
+    gHits.forEach(g=>h+=`<div class="gdef"><b>${esc(g.term)}</b> — ${wikiLinks(stripDiagram(g.def))}</div>`);
   }
   if(sources.length){
-    h+='<div class="sec">📄 아티클에서 찾은 근거</div>';
-    sources.forEach(s=>h+=`<a class="src" href="#/p/${encodeURIComponent(s.slug)}~b${s.i}">
-      <div class="st">✍ ${esc(s.author||s.pub)} · ${esc(s.title)}</div>
-      <div class="sx">${snippet(s.t,terms)}</div>
-      <div class="go">이 문단으로 이동 →</div></a>`);
+    h+='<div class="sec">📄 아티클에서 찾은 근거</div>'+srcCards(sources,terms);
   }
   h+='<div class="note">이 답변은 올려둔 아티클 '+CORPUS.length+'편에서 직접 찾아 정리한 내용입니다. 정확한 맥락은 근거 문단을 눌러 원문에서 확인하세요.</div>';
+  return h+'</div>';
+}
+function stripDiagram(def){ return (def||'').replace(/<div class="gdiagram">[\s\S]*?<\/div>\s*<\/div>/g,''); }
+// Solar 생성형 답변 (프록시 사용 가능할 때)
+function genAnswerHTML(text, sources, terms){
+  const body='<p>'+esc(text).replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')+'</p>';
+  let h='<div class="ans"><div class="sec">🤖 Solar-Pro 답변</div><div class="genbody">'+body+'</div>';
+  if(sources.length) h+='<div class="sec">📄 근거 아티클</div>'+srcCards(sources,terms);
+  h+='<div class="note">Solar-Pro가 위 아티클을 바탕으로 작성했습니다. \'(아티클 밖 일반 지식)\' 표시가 있으면 아티클에 없어 모델 지식으로 보완한 부분입니다.</div>';
   return h+'</div>';
 }
 const STARTERS=["HBM이 뭐야?","NVHBM이 왜 중요해?","첨단 패키징이 왜 중요해?","CPO가 뭐야?","지금 메모리에서 뭘 봐야 해?"];
@@ -445,11 +460,20 @@ function renderChat(){
   if(CHAT.length) window.scrollTo(0,document.body.scrollHeight);
   else $('#chatIn') && $('#chatIn').focus();
 }
-function ask(q){
-  CHAT.push({q, a:answerHTML(q)});
+async function ask(q){
+  const idx=CHAT.push({q, a:'<div class="ans"><span class="thinking">답변을 준비하고 있어요…</span></div>'})-1;
   renderChat();
   const conv=$('#conv'); if(conv){ const last=conv.lastElementChild; if(last)last.scrollIntoView({block:'start'}); }
-  const inp=$('#chatIn'); if(inp){inp.value=''; inp.focus();}
+  const {terms,gHits,sources}=retrieve(q);
+  let html=null;
+  try{   // 생성 모드: 프록시(api/chat)가 있으면 Solar가 답변 작성
+    const r=await fetch('api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({question:q, sources:sources.slice(0,6).map(s=>({title:s.title,text:s.t}))})});
+    if(r.ok){ const d=await r.json(); if(d&&d.answer) html=genAnswerHTML(d.answer, sources, terms); }
+  }catch(e){/* 프록시 없음 → 검색형으로 폴백 */}
+  if(!html) html=answerHTML(q);   // 폴백: 무료 검색형
+  CHAT[idx].a=html;
+  renderChat();
 }
 
 /* ---- 글자 크기 / 진행바 ---- */
