@@ -148,7 +148,7 @@ a.gloss:hover{color:var(--accent)}
   <div class="bar">
     <button id="back" class="hidden">← 목록</button>
     <div class="grow" id="barTitle">번역 아카이브</div>
-    <button id="chatBtn" title="아티클에게 질문하기">💬 질문</button>
+    <button id="chatBtn" title="아티클 기반 챗봇">💬 챗봇</button>
     <button id="glossBtn" title="용어집">📖 용어</button>
     <button id="fsDown" title="글자 작게">A−</button>
     <button id="fsUp" title="글자 크게">A+</button>
@@ -218,7 +218,7 @@ $('#lock').onclick=()=>{localStorage.removeItem('rc');sessionStorage.removeItem(
 
 function enter(){ $('#gate').classList.add('hidden'); $('#app').classList.remove('hidden'); route(); }
 window.addEventListener('hashchange',route);
-function backLabel(h){ return h.startsWith('#/p/')?'← 글로':h==='#/chat'?'← 질문':h==='#/glossary'?'← 용어집':'← 목록'; }
+function backLabel(h){ return h.startsWith('#/p/')?'← 글로':h==='#/chat'?'← 챗봇':h==='#/glossary'?'← 용어집':'← 목록'; }
 function route(){
   const g=location.hash.match(/^#\/g\/(.+)$/);
   const gl=location.hash.match(/^#\/glossary$/);
@@ -446,12 +446,12 @@ const STARTERS=["HBM이 뭐야?","NVHBM이 왜 중요해?","첨단 패키징이 
 function showChat(){
   $('#list').classList.add('hidden'); $('#post').classList.add('hidden'); $('#gloss').classList.add('hidden'); $('#chat').classList.remove('hidden');
   $('#back').classList.remove('hidden'); $('#orig').classList.add('hidden'); $('#back').textContent='← 목록';
-  $('#barTitle').textContent='아티클에게 질문';
+  $('#barTitle').textContent='챗봇';
   renderChat();
 }
 function renderChat(){
   const conv=CHAT.map(t=>`<div class="qa"><div class="bubble">${esc(t.q)}</div>${t.a}</div>`).join('');
-  $('#chat').innerHTML=`<h2>💬 아티클에게 질문하기</h2>
+  $('#chat').innerHTML=`<h2>💬 챗봇</h2>
     <p class="lead">올려둔 ${CORPUS.length}편의 글을 통틀어 찾아, 쉽게 정리하고 근거가 된 아티클 문단을 함께 보여줍니다.</p>
     ${CHAT.length?'':`<div class="starters">${STARTERS.map(s=>`<span class="starter">${esc(s)}</span>`).join('')}</div>`}
     <div id="conv">${conv}</div>
