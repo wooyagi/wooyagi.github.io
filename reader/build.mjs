@@ -18,6 +18,7 @@
  *   node reader/build.mjs verify                     입장 코드 확인
  *   node reader/build.mjs inspect <slug>             기존 글의 실제 스키마 확인
  *   node reader/build.mjs add <post.json>            번역 완료본을 아카이브에 추가
+ *   node reader/build.mjs images <post.json>         이미지를 base64 로 본문에 인라인
  *   node reader/build.mjs gloss-add <terms.json>     용어집에 새 용어 추가
  */
 import { webcrypto as crypto } from 'node:crypto';
@@ -182,27 +183,76 @@ function topLevelElements(html) {
   return out;
 }
 
-/** Substack body_html → blocks[] 골격 (ko 는 비워둔 채로, 번역해서 채울 자리) */
+/**
+ * Substack body_html → blocks[] 골격 (ko 는 비워둔 채로, 번역해서 채울 자리)
+ *
+ * 실제 마크업에서 확인한 것들을 반영한다:
+ *  - 구분선은 <div><hr></div> 로 한 겹 감싸여 온다
+ *  - 이미지는 div.captioned-image-container > figure > a > picture > img
+ *  - 구독 위젯·공유 버튼은 UI 덩어리라 본문 문장(p.cta-caption)만 남기고 버린다
+ *  - 이미지 블록은 캡션이 없어도 기존 글과 같이 caption·ko 키를 유지한다
+ */
 function htmlToBlocks(bodyHtml) {
   const blocks = [];
   for (const el of topLevelElements(bodyHtml || '')) {
     const h = el.html;
-    if (el.tag === 'hr') { blocks.push({ type: 'hr' }); continue; }
-    // 이미지 (Substack 은 div.captioned-image-container / figure 로 감싼다)
-    const img = h.match(/<img[^>]+src="([^"]+)"/i);
-    if (img && /captioned-image|figure|image/i.test(h)) {
-      const cap = h.match(/<figcaption[^>]*>([\s\S]*?)<\/figcaption>/i);
-      const b = { type: 'image', src: img[1], alt: (h.match(/alt="([^"]*)"/i) || [, ''])[1] };
-      if (cap) { b.caption = stripTags(cap[1]); b.ko = ''; }
-      blocks.push(b);
+
+    // <hr> 또는 <div><hr></div>
+    if (el.tag === 'hr' || /^<div[^>]*>\s*<hr\s*\/?>\s*<\/div>$/i.test(h.trim())) {
+      blocks.push({ type: 'hr' });
       continue;
     }
+
+    // 이미지 — src 가 첫 속성으로 올 수 있으므로 [^>]*? 로 받는다.
+    // \ssrc=" 는 srcset=" 과 겹치지 않는다(src 뒤에 = 가 와야 한다).
+    const img = h.match(/<img\b[^>]*?\ssrc="([^"]+)"/i);
+    if (img && /captioned-image|<figure/i.test(h)) {
+      const cap = h.match(/<figcaption[^>]*>([\s\S]*?)<\/figcaption>/i);
+      blocks.push({ type: 'image', src: img[1],
+        alt: (h.match(/<img\b[^>]*?\salt="([^"]*)"/i) || [, ''])[1],
+        caption: cap ? stripTags(cap[1]) : '', ko: '' });
+      continue;
+    }
+
+    // 구독 위젯 / 공유 버튼 — 안내 문장만 살린다
+    if (/subscription-widget|captioned-button-wrap|subscribe-widget/i.test(h)) {
+      const cta = h.match(/<p class="cta-caption"[^>]*>([\s\S]*?)<\/p>/i);
+      if (cta) blocks.push({ type: 'p', html: cta[0], ko: '' });
+      continue;
+    }
+
     const type = /^(h[1-6]|blockquote|ul|ol|pre|table)$/.test(el.tag) ? el.tag : 'p';
-    const text = stripTags(h);
-    if (!text && type === 'p') continue;          // 빈 문단·장식용 div 는 버린다
+    if (!stripTags(h) && type === 'p') continue;   // 빈 문단·장식용 div 는 버린다
     blocks.push({ type, html: h, ko: '' });
   }
   return blocks;
+}
+
+/**
+ * 이미지를 base64 data URI 로 본문에 박아 넣는다.
+ * 기존 40편의 이미지 471장이 전부 이 형태다 (원격 URL 0장) — Substack CDN 링크는
+ * 만료·referer 문제가 있어서 통째로 받아 넣는다. f_auto 변환 URL 을 그대로 받으면
+ * JPEG 가 내려오므로 별도 변환이 필요 없다.
+ */
+async function inlineImages(post, { max = 4 * 1024 * 1024 } = {}) {
+  let done = 0, skipped = 0;
+  for (const b of post.blocks) {
+    if (b.type !== 'image' || !b.src || b.src.startsWith('data:')) continue;
+    let r;
+    try {
+      r = await fetch(b.src, { headers: { 'User-Agent': UA, Accept: 'image/jpeg,image/*' } });
+    } catch (e) {
+      console.log(`  ⚠ 이미지 실패 (${e.message}) — 원격 URL 로 남겨둡니다`);
+      skipped++; continue;
+    }
+    if (!r.ok) { console.log(`  ⚠ 이미지 ${r.status} — 원격 URL 로 남겨둡니다`); skipped++; continue; }
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length > max) { console.log(`  ⚠ 이미지가 너무 큽니다 (${(buf.length/1024/1024).toFixed(1)}MB) — 건너뜀`); skipped++; continue; }
+    const ct = (r.headers.get('content-type') || 'image/jpeg').split(';')[0];
+    b.src = `data:${ct};base64,${buf.toString('base64')}`;
+    done++;
+  }
+  return { done, skipped };
 }
 
 /* ───────────── search.enc 청크 (챗봇 근거용) ───────────── */
@@ -248,10 +298,17 @@ function validatePost(post, existingSlugs) {
     warns.push(`index.html 의 TOPICS 에 없는 주제 "${t}" — 회색 📄 로 표시됩니다. 색·이모지를 주려면 index.html 도 고쳐야 합니다.`));
 
   (post.blocks || []).forEach((b, i) => {
-    if (b.type === 'hr' || b.type === 'image') return;
+    if (b.type === 'hr') return;
+    if (b.type === 'image') {
+      // 기존 40편의 이미지 471장은 전부 base64 인라인이다. 원격 URL 은 나중에 깨진다.
+      if (b.src && !b.src.startsWith('data:'))
+        warns.push(`blocks[${i}]: 이미지가 원격 URL 입니다 — images 명령으로 인라인하세요 (${b.src.slice(0, 60)}…)`);
+      return;
+    }
     if (!b.html) errs.push(`blocks[${i}]: 원문 html 이 없습니다 (문단 펼치기가 빕니다)`);
     if (!b.ko) errs.push(`blocks[${i}]: 번역 ko 가 없습니다`);
   });
+  if (!post.brief) warns.push('brief 가 없습니다 — 같은 발행처 기존 글의 brief 를 inspect 로 꺼내 쓰세요.');
   if (!post.summary) warns.push('summary 가 없습니다 — 핵심 요약 박스가 표시되지 않습니다.');
   return { errs, warns };
 }
@@ -339,11 +396,34 @@ CMDS.fetch = async argv => {
     summary: '',                    // ← 핵심 요약 HTML (직접 채운다)
     blocks: htmlToBlocks(p.body_html),
   };
+  // 유료 글을 로그인 없이 받으면 결제벽 앞까지만 내려온다. 반쪽짜리를 넣지 않도록 막는다.
+  const got = skeleton.blocks.reduce((n, b) => n + stripTags(b.html).split(/\s+/).filter(Boolean).length, 0);
+  if (p.wordcount && got < p.wordcount * 0.7)
+    console.log(`⚠ 본문이 잘린 것 같습니다: 받은 단어 ${got} / 전체 ${p.wordcount} (${Math.round(got / p.wordcount * 100)}%).\n` +
+                '  유료 글의 무료 미리보기일 수 있습니다. SUBSTACK_SID 를 확인하세요.');
+
+  if (!has(argv, '--no-images')) {
+    const n = skeleton.blocks.filter(b => b.type === 'image').length;
+    if (n) {
+      console.log(`이미지 ${n}장 내려받는 중…`);
+      const { done, skipped } = await inlineImages(skeleton);
+      console.log(`  인라인 ${done}장${skipped ? `, 실패 ${skipped}장` : ''}`);
+    }
+  }
+
   const out = flag(argv, '--out') || `${slug}.json`;
   fs.writeFileSync(out, JSON.stringify(skeleton, null, 2));
   const n = skeleton.blocks.filter(b => b.type !== 'hr' && b.type !== 'image').length;
   console.log(`${skeleton.title}\n  블록 ${skeleton.blocks.length}개 (번역할 문단 ${n}개) → ${out}`);
-  console.log('  다음: ko/tagline/topics/summary 를 채운 뒤 add 로 넘기세요.');
+  console.log('  다음: ko/tagline/topics/summary/brief 를 채운 뒤 add 로 넘기세요.');
+};
+
+CMDS.images = async argv => {
+  const file = positional(argv)[1] || die('사용법: node reader/build.mjs images <post.json>');
+  const post = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const { done, skipped } = await inlineImages(post);
+  fs.writeFileSync(file, JSON.stringify(post, null, 2));
+  console.log(`✓ 이미지 인라인 ${done}장${skipped ? `, 실패 ${skipped}장` : ''} → ${file}`);
 };
 
 CMDS.verify = async argv => {
