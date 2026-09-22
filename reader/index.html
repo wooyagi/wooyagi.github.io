@@ -27,6 +27,17 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .bar .grow{flex:1;min-width:0;font-size:.9em;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar button,.bar a.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;padding:5px 10px;font-size:.85em;cursor:pointer;white-space:nowrap}
 .bar button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* 챗봇·용어는 핵심 기능이라 눈에 띄게 */
+.bar button.key{background:color-mix(in srgb,var(--accent) 12%,var(--card));border-color:color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--accent);font-weight:700}
+.bar button.key:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+/* 목록 맨 위 진입 카드 */
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 18px}
+.tool{display:flex;gap:11px;align-items:center;text-align:left;width:100%;padding:13px 14px;border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--accent) 7%,var(--card));color:var(--fg);cursor:pointer;font:inherit}
+.tool:hover{background:color-mix(in srgb,var(--accent) 14%,var(--card));border-color:var(--accent);transform:translateY(-1px)}
+.tool .ico{font-size:1.5em;line-height:1;flex:none}
+.tool .tt{font-weight:700;font-size:.97em;margin-bottom:2px}
+.tool .ts{font-size:.82em;color:var(--muted);line-height:1.35}
+@media(max-width:560px){.tools{grid-template-columns:1fr}}
 /* ---- 목록 ---- */
 #list{max-width:940px;margin:0 auto;padding:22px 18px 70px}
 .hero{margin:6px 2px 22px}
@@ -148,8 +159,8 @@ a.gloss:hover{color:var(--accent)}
   <div class="bar">
     <button id="back" class="hidden">← 목록</button>
     <div class="grow" id="barTitle">번역 아카이브</div>
-    <button id="chatBtn" title="아티클 기반 챗봇">💬 챗봇</button>
-    <button id="glossBtn" title="용어집">📖 용어</button>
+    <button id="chatBtn" class="key" title="아티클 기반 챗봇">💬 챗봇</button>
+    <button id="glossBtn" class="key" title="용어집">📖 용어</button>
     <button id="fsDown" title="글자 작게">A−</button>
     <button id="fsUp" title="글자 크게">A+</button>
     <button id="toggleEn" title="모든 문단의 원문 표시">원문</button>
@@ -177,6 +188,11 @@ const TOPICS={
 };
 const tmeta=t=>TOPICS[t]||{e:"📄",c:"#94a3b8"};
 let CORPUS=[], CHAT=[], pendingBlock=null;
+/* 챗봇 생성모드 백엔드 주소.
+   로컬(chat_proxy.py)에서 열었으면 같은 서버의 api/chat, 그 밖에서는 Cloudflare Worker.
+   Worker 를 아직 배포하지 않았으면 호출이 실패하고 무료 검색형으로 자동 폴백한다. */
+const CHAT_WORKER='https://substack-ko-chat.__ACCOUNT__.workers.dev/api/chat';
+const CHAT_API=(location.port==='8765'||location.protocol==='file:')?'api/chat':CHAT_WORKER;
 let prevHash='', viewBack='';   // viewBack: 현재 화면의 '뒤로' 목적지
 let currentPostSlug='', postScrollSlug='', postScrollY=0;   // 글 읽던 스크롤 위치 복원용
 
@@ -265,10 +281,16 @@ function showList(){
   }
   $('#list').innerHTML=`
     <div class="hero"><h1>📚 나의 번역 아카이브</h1><p>구독 중인 뉴스레터를 한국어로 — 총 ${INDEX.length}편, 주제별로 정리했습니다.</p></div>
+    <div class="tools">
+      <button class="tool" id="toolChat"><span class="ico">💬</span><span><span class="tt">챗봇에게 물어보기</span><span class="ts">${INDEX.length}편 전체에서 찾아 답하고 근거 문단까지 보여줍니다</span></span></button>
+      <button class="tool" id="toolGloss"><span class="ico">📖</span><span><span class="tt">용어집 보기</span><span class="ts">${GLOSS.length?GLOSS.length+'개 ':''}어려운 개념을 그림과 함께 쉽게 풀었습니다</span></span></button>
+    </div>
     <div class="searchwrap"><input id="q" placeholder="제목·주제·필자 검색" value="${q}"></div>
     <div class="chips"><span class="chip ${!filterTopic?'on':''}" data-t="">전체</span>${topics.map(t=>{const m=tmeta(t);return `<span class="chip ${filterTopic===t?'on':''}" data-t="${t}">${m.e} ${t}</span>`;}).join('')}</div>`+
     (pubs.length>1?`<div class="chips pubchips"><span class="chip ${!filterPub?'on':''}" data-p="">✍ 모든 발행처</span>${pubs.map(p=>`<span class="chip ${filterPub===p?'on':''}" data-p="${p}">${p}</span>`).join('')}</div>`:'')+
     (body||'<p class="hint">해당하는 글이 없습니다</p>');
+  $('#toolChat').onclick=()=>showChat();
+  $('#toolGloss').onclick=()=>showGloss();
   $('#q').oninput=e=>{q=e.target.value.toLowerCase();showList();$('#q').focus();$('#q').setSelectionRange(q.length,q.length);};
   document.querySelectorAll('.chip[data-t]').forEach(c=>c.onclick=()=>{filterTopic=c.dataset.t;showList();});
   document.querySelectorAll('.chip[data-p]').forEach(c=>c.onclick=()=>{filterPub=c.dataset.p;showList();});
@@ -435,8 +457,45 @@ function answerHTML(q){
 }
 function stripDiagram(def){ return (def||'').replace(/<div class="gdiagram">[\s\S]*?<\/div>\s*<\/div>/g,''); }
 // Solar 생성형 답변 (프록시 사용 가능할 때)
+// 모델이 쓴 마크다운을 최소한으로 HTML 변환 (제목/굵게/기울임/코드/목록/인용)
+function mdToHTML(src){
+  const lines=String(src||'').replace(/\r/g,'').split('\n');
+  const inline=s=>{
+    let t=esc(s);
+    t=t.replace(/`([^`]+)`/g,'<code>$1</code>');
+    t=t.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    t=t.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,'$1<em>$2</em>');
+    t=t.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+    return t;
+  };
+  let h='', list=null, para=[];
+  const flushPara=()=>{ if(para.length){ h+='<p>'+para.map(inline).join('<br>')+'</p>'; para=[]; } };
+  const closeList=()=>{ if(list){ h+='</'+list+'>'; list=null; } };
+  for(const raw of lines){
+    const line=raw.replace(/\s+$/,'');
+    if(!line.trim()){ flushPara(); closeList(); continue; }
+    let m;
+    if((m=line.match(/^(#{1,6})\s+(.*)$/))){
+      flushPara(); closeList();
+      const lv=Math.min(6,Math.max(3,m[1].length+2));
+      h+=`<h${lv}>${inline(m[2])}</h${lv}>`; continue;
+    }
+    if(/^\s*([-*_]\s*){3,}$/.test(line)){ flushPara(); closeList(); h+='<hr>'; continue; }
+    if((m=line.match(/^\s*>\s?(.*)$/))){ flushPara(); closeList(); h+='<blockquote><p>'+inline(m[1])+'</p></blockquote>'; continue; }
+    if((m=line.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)$/))){
+      flushPara();
+      const want=/^\s*\d/.test(line)?'ol':'ul';
+      if(list&&list!==want) closeList();
+      if(!list){ h+='<'+want+'>'; list=want; }
+      h+='<li>'+inline(m[1])+'</li>'; continue;
+    }
+    closeList(); para.push(line);
+  }
+  flushPara(); closeList();
+  return h||'<p>'+inline(String(src||''))+'</p>';
+}
 function genAnswerHTML(text, sources, terms){
-  const body='<p>'+esc(text).replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')+'</p>';
+  const body=mdToHTML(text);
   let h='<div class="ans"><div class="sec">🤖 Solar-Pro 답변</div><div class="genbody">'+body+'</div>';
   if(sources.length) h+='<div class="sec">📄 근거 아티클</div>'+srcCards(sources,terms);
   h+='<div class="note">Solar-Pro가 위 아티클을 바탕으로 작성했습니다. \'(아티클 밖 일반 지식)\' 표시가 있으면 아티클에 없어 모델 지식으로 보완한 부분입니다.</div>';
@@ -468,7 +527,7 @@ async function ask(q){
   const {terms,gHits,sources}=retrieve(q);
   let html=null;
   try{   // 생성 모드: 프록시(api/chat)가 있으면 Solar가 답변 작성
-    const r=await fetch('api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+    const r=await fetch(CHAT_API,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({question:q, sources:sources.slice(0,6).map(s=>({title:s.title,text:s.t}))})});
     if(r.ok){ const d=await r.json(); if(d&&d.answer) html=genAnswerHTML(d.answer, sources, terms); }
   }catch(e){/* 프록시 없음 → 검색형으로 폴백 */}
