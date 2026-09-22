@@ -6,10 +6,15 @@
  *   입장 코드 → PBKDF2-SHA256(salt, iter) → AES-GCM 256
  *   파일 내용 = base64( iv(12) ‖ 암호문+태그 ), 복호화하면 JSON
  *
+ * 설정은 reader/.env.local (gitignore 됨) 에 두면 자동으로 읽는다:
+ *   READER_CODE=...        리더 입장 코드
+ *   SUBSTACK_COOKIE=...    브라우저 Cookie 헤더 통째로 (유료 글 전문 수신용)
+ *
  * 입장 코드는 READER_CODE 환경변수 / --code-file / stdin 으로만 받는다.
  * 절대 출력하지 않고, 저장소에도 남기지 않는다.
  *
  * 사용법:
+ *   node reader/build.mjs doctor [pub]              실행 전 점검 (접속·코드·구독인증·CDN)
  *   node reader/build.mjs selftest                   암호 왕복 자가진단 (코드 불필요)
  *   node reader/build.mjs status                     현재 아카이브 상태 (코드 불필요)
  *   node reader/build.mjs archive <pub> [--limit N]  Substack 아카이브 목록 받기 (코드 불필요)
@@ -28,6 +33,22 @@ import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 const READER = path.dirname(fileURLToPath(import.meta.url));
+
+/**
+ * reader/.env.local 이 있으면 읽어온다 (.gitignore 에 등록되어 커밋되지 않는다).
+ * 매번 export 하지 않아도 되도록 하는 용도. 이미 설정된 환경변수가 우선이다.
+ */
+(function loadLocalEnv() {
+  const f = path.join(READER, '.env.local');
+  if (!fs.existsSync(f)) return;
+  for (const line of fs.readFileSync(f, 'utf8').split('\n')) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$/);
+    if (!m) continue;
+    const v = m[2].trim().replace(/^(['"])(.*)\1$/, '$2');
+    if (v && process.env[m[1]] === undefined) process.env[m[1]] = v;
+  }
+})();
+
 const P = {
   meta: path.join(READER, 'meta.json'),
   index: path.join(READER, 'index.enc'),
@@ -135,10 +156,17 @@ const NET_HINT =
   '  → 네트워크가 열린 환경(로컬 Mac 등)에서 실행하거나,\n' +
   '  → 본문을 직접 붙여넣어 add 로 처리하세요. 유료 글은 SUBSTACK_SID 가 필요합니다.';
 
+/** 유료 글은 구독 세션이 있어야 body_html 이 내려온다. 쿠키는 환경변수로만 받는다. */
+function authCookie() {
+  if (process.env.SUBSTACK_COOKIE) return process.env.SUBSTACK_COOKIE;   // Cookie 헤더 통째로
+  if (process.env.SUBSTACK_SID) return `substack.sid=${process.env.SUBSTACK_SID}`;
+  return null;
+}
+
 async function sget(url) {
   const headers = { 'User-Agent': UA, Accept: 'application/json' };
-  // 유료 글은 구독 세션이 있어야 body_html 이 내려온다. 쿠키는 환경변수로만 받는다.
-  if (process.env.SUBSTACK_SID) headers.Cookie = `substack.sid=${process.env.SUBSTACK_SID}`;
+  const cookie = authCookie();
+  if (cookie) headers.Cookie = cookie;
   let r;
   try {
     r = await fetch(url, { headers, redirect: 'follow' });
@@ -416,6 +444,73 @@ CMDS.fetch = async argv => {
   const n = skeleton.blocks.filter(b => b.type !== 'hr' && b.type !== 'image').length;
   console.log(`${skeleton.title}\n  블록 ${skeleton.blocks.length}개 (번역할 문단 ${n}개) → ${out}`);
   console.log('  다음: ko/tagline/topics/summary/brief 를 채운 뒤 add 로 넘기세요.');
+};
+
+/** 실행 전 점검: 무엇이 준비됐고 무엇이 막혀 있는지 한 번에 본다. */
+CMDS.doctor = async argv => {
+  const pub = positional(argv)[1] || 'photoncap';
+  const ok = s => '  ✅ ' + s, no = s => '  ❌ ' + s, hm = s => '  ⚠  ' + s;
+  console.log(`■ 실행 환경`);
+  console.log(ok(`Node ${process.version}`));
+  console.log(fs.existsSync(path.join(READER, '.env.local'))
+    ? ok('reader/.env.local 있음 (설정값 자동 로드)') : hm('reader/.env.local 없음 — 환경변수로 직접 넘겨야 합니다'));
+
+  console.log(`\n■ 아카이브`);
+  const slugs = localSlugs();
+  const meta = JSON.parse(fs.readFileSync(P.meta, 'utf8'));
+  console.log(ok(`글 ${slugs.length}편, 용어 ${meta.glossary}개`));
+
+  console.log(`\n■ 입장 코드`);
+  let keyOk = false;
+  if (!process.env.READER_CODE && !flag(argv, '--code-file')) console.log(no('READER_CODE 가 없습니다'));
+  else {
+    try {
+      const rk = await deriveKey(await readCode(argv), meta.salt, meta.iter, ['decrypt']);
+      const idx = await decryptJSON(fs.readFileSync(P.index, 'utf8'), rk);
+      console.log(ok(`복호화 성공 — 인덱스 ${idx.length}편`)); keyOk = true;
+    } catch { console.log(no('입장 코드가 맞지 않습니다')); }
+  }
+
+  console.log(`\n■ Substack 접속 (${pub})`);
+  let list = null;
+  try {
+    const headers = { 'User-Agent': UA, Accept: 'application/json' };
+    const cookie = authCookie();
+    if (cookie) headers.Cookie = cookie;
+    const r = await fetch(`${pubBase(pub)}/api/v1/archive?sort=new&offset=0&limit=5`, { headers });
+    if (r.ok) { list = await r.json(); console.log(ok(`아카이브 조회 성공 — 최근 ${list.length}편`)); }
+    else console.log(no(`응답 ${r.status} — 네트워크 정책 차단 가능성`));
+  } catch (e) { console.log(no(`접속 실패: ${e.message}`)); }
+
+  console.log(`\n■ 구독 인증 (유료 글 전문 수신)`);
+  if (!authCookie()) console.log(no('SUBSTACK_COOKIE / SUBSTACK_SID 가 없습니다 — 유료 글은 미리보기만 받습니다'));
+  else if (!list) console.log(hm('아카이브를 못 받아 확인할 수 없습니다'));
+  else {
+    const paid = list.find(p => p.audience === 'only_paid');
+    if (!paid) console.log(hm('최근 글에 유료 글이 없어 확인 생략'));
+    else {
+      try {
+        const p = await sget(`${pubBase(pub)}/api/v1/posts/${paid.slug}`);
+        const got = stripTags(p.body_html || '').split(/\s+/).filter(Boolean).length;
+        const pct = p.wordcount ? Math.round(got / p.wordcount * 100) : 0;
+        console.log(pct >= 70 ? ok(`전문 수신 확인 — ${paid.slug} ${got}/${p.wordcount} 단어 (${pct}%)`)
+                              : no(`결제벽에서 잘립니다 — ${got}/${p.wordcount} 단어 (${pct}%). 쿠키를 다시 받아오세요`));
+      } catch { console.log(no('유료 글 확인 실패')); }
+    }
+  }
+
+  console.log(`\n■ 이미지 CDN (본문 인라인용)`);
+  try {
+    // 실제 이미지 한 장을 받아본다. 프록시 차단은 403/407 응답으로 오므로 상태코드만 보면 오진한다.
+    const probe = list && list[0] && list[0].cover_image;
+    const r = await fetch(probe || 'https://substackcdn.com/', { headers: { 'User-Agent': UA, Accept: 'image/*' } });
+    const ct = r.headers.get('content-type') || '';
+    if (r.ok && /^image\//.test(ct)) console.log(ok(`이미지 수신 확인 (${ct})`));
+    else if (r.status === 403 || r.status === 407) console.log(no(`응답 ${r.status} — 차단됨. 이미지 인라인이 안 됩니다`));
+    else console.log(hm(`응답 ${r.status} ${ct} — 확인 필요`));
+  } catch (e) { console.log(no(`접속 실패: ${e.message} — 이미지 인라인이 안 됩니다`)); }
+
+  console.log(`\n${keyOk && list ? '준비 완료. Claude 에게 /substack ' + pub + ' 이라고 하세요.' : '위의 ❌ 항목을 먼저 해결하세요.'}`);
 };
 
 CMDS.images = async argv => {
