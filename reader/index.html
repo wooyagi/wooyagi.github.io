@@ -191,7 +191,7 @@ let CORPUS=[], CHAT=[], pendingBlock=null;
 /* 챗봇 생성모드 백엔드 주소.
    로컬(chat_proxy.py)에서 열었으면 같은 서버의 api/chat, 그 밖에서는 Cloudflare Worker.
    Worker 를 아직 배포하지 않았으면 호출이 실패하고 무료 검색형으로 자동 폴백한다. */
-const CHAT_WORKER='https://substack-ko-chat.__ACCOUNT__.workers.dev/api/chat';
+const CHAT_WORKER='https://substack-ko-chat.sungs3436.workers.dev/api/chat';
 const CHAT_API=(location.port==='8765'||location.protocol==='file:')?'api/chat':CHAT_WORKER;
 let prevHash='', viewBack='';   // viewBack: 현재 화면의 '뒤로' 목적지
 let currentPostSlug='', postScrollSlug='', postScrollY=0;   // 글 읽던 스크롤 위치 복원용
