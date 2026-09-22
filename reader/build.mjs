@@ -209,21 +209,29 @@ function htmlToBlocks(bodyHtml) {
 
 /**
  * 블록 인덱스 i 를 그대로 보존해야 #/p/{slug}~b{i} 딥링크가 맞는다.
- * 본문은 한국어로 검색하므로 ko 를 우선 쓰고, 없으면 원문으로 채운다.
+ * 기존 글과 동일하게 image·hr 을 뺀 모든 블록을 길이 제한 없이 담는다
+ * (예: 157블록 − 이미지11 − hr4 = 142청크).
  */
 function chunksOf(post) {
   const out = [];
   post.blocks.forEach((b, i) => {
     if (b.type === 'hr' || b.type === 'image') return;
-    const t = stripTags(b.ko) || stripTags(b.html);
-    if (t && t.length >= 12) out.push({ i, type: b.type || 'p', t });
+    out.push({ i, t: stripTags(b.ko) || stripTags(b.html), type: b.type || 'p' });
   });
   return out;
 }
 
+/** 기존 글의 words 는 번역문(ko)의 HTML 포함 총 길이다. */
+const wordsOf = post => post.blocks.reduce((n, b) => n + (b.ko || '').length, 0);
+const imagesOf = post => post.blocks.filter(b => b.type === 'image').length;
+
 /* ───────────────────── 검증 ───────────────────── */
 
-const INDEX_FIELDS = ['slug', 'title', 'subtitle', 'tagline', 'author', 'publication', 'date', 'topics'];
+// 기존 40편과 동일한 형태 — 필드 구성은 inspect 로 실측한 것이다
+const INDEX_FIELDS = ['slug', 'title', 'subtitle', 'author', 'publication', 'date', 'words', 'images', 'topics', 'tagline'];
+const POST_FIELDS = ['slug', 'title', 'subtitle', 'author', 'publication', 'date', 'url',
+  'brief', 'summary', 'topics', 'tagline', 'blocks', 'words'];
+const SEARCH_FIELDS = ['slug', 'title', 'author', 'publication', 'tagline', 'summary', 'chunks'];
 
 function validatePost(post, existingSlugs) {
   const errs = [], warns = [];
@@ -327,6 +335,7 @@ CMDS.fetch = async argv => {
     url: p.canonical_url,
     tagline: '',                    // ← 카드에 보일 한 줄 (직접 채운다)
     topics: [],                     // ← index.html 의 TOPICS 중에서 고른다
+    brief: '',                      // ← 필자 문체 가이드 (번역 톤을 맞추기 위한 메모)
     summary: '',                    // ← 핵심 요약 HTML (직접 채운다)
     blocks: htmlToBlocks(p.body_html),
   };
@@ -355,7 +364,10 @@ CMDS.inspect = async argv => {
   post.blocks.forEach(b => types[b.type || 'p'] = (types[b.type || 'p'] || 0) + 1);
   console.log('블록 타입     :', JSON.stringify(types));
   console.log('블록 항목 키  :', [...new Set(post.blocks.map(b => Object.keys(b).join('+')))].join(' | '));
-  const search = await decryptJSON(fs.readFileSync(P.search, 'utf8'), rk).find(a => a.slug === slug);
+  console.log('요약(brief)   :', JSON.stringify(post.brief || '').slice(0, 160));
+  console.log('요약(summary) :', JSON.stringify(post.summary || '').slice(0, 160));
+  console.log('주제          :', JSON.stringify(post.topics), '/ words:', post.words, '/ images:', meta.images);
+  const search = (await decryptJSON(fs.readFileSync(P.search, 'utf8'), rk)).find(a => a.slug === slug);
   if (search) {
     console.log('search 항목 키:', Object.keys(search).join(', '));
     console.log('청크 수       :', search.chunks.length, '/ 청크 키:', Object.keys(search.chunks[0] || {}).join(', '));
@@ -373,15 +385,22 @@ CMDS.add = async argv => {
   warns.forEach(w => console.log('⚠ ' + w));
   if (errs.length) { errs.forEach(e => console.error('✗ ' + e)); process.exit(1); }
 
-  const entry = {};
-  for (const f of INDEX_FIELDS) if (post[f] !== undefined) entry[f] = post[f];
-  const body = { publication: post.publication, title: post.title, subtitle: post.subtitle || '',
-    author: post.author, date: post.date, url: post.url, summary: post.summary || '', blocks: post.blocks };
-  const searchEntry = { slug: post.slug, title: post.title, author: post.author,
-    publication: post.publication, chunks: chunksOf(post) };
+  // words·images 는 본문에서 계산한다 (기존 글과 같은 정의)
+  const full = { ...post, words: wordsOf(post), images: imagesOf(post), chunks: chunksOf(post) };
+  const pick = (fields, src) => {
+    const o = {};
+    for (const f of fields) o[f] = src[f] !== undefined ? src[f] : (f === 'subtitle' || f === 'tagline' || f === 'brief' || f === 'summary' ? '' : src[f]);
+    return o;
+  };
+  const entry = pick(INDEX_FIELDS, full);
+  const body = pick(POST_FIELDS, full);
+  const searchEntry = pick(SEARCH_FIELDS, full);
 
   if (dry) {
-    console.log(`[dry-run] ${post.slug} — 블록 ${post.blocks.length}개, 청크 ${searchEntry.chunks.length}개, 주제 ${(post.topics||[]).join('/')}`);
+    console.log(`[dry-run] ${post.slug}`);
+    console.log(`  블록 ${post.blocks.length} (이미지 ${full.images}) · 청크 ${searchEntry.chunks.length} · words ${full.words} · 주제 ${(post.topics || []).join('/')}`);
+    console.log(`  index 키 : ${Object.keys(entry).join(', ')}`);
+    console.log(`  post 키  : ${Object.keys(body).join(', ')}`);
     console.log('[dry-run] 쓰지 않고 종료합니다.');
     return;
   }
