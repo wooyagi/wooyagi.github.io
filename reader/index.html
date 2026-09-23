@@ -47,6 +47,14 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .searchwrap::before{content:"🔍";position:absolute;left:15px;top:50%;transform:translateY(-50%);font-size:.95em;opacity:.55}
 #list input{width:100%;padding:13px 16px 13px 42px;font-size:1em;border:1px solid var(--line);border-radius:13px;background:var(--card);color:var(--fg);transition:border-color .15s,box-shadow .15s}
 #list input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
+/* 출처 탭 (Substack / X …) */
+.srctabs{display:flex;gap:4px;margin:0 0 14px;border-bottom:1px solid var(--line);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.srctab{position:relative;display:inline-flex;align-items:center;gap:6px;flex:none;padding:9px 15px;border:0;border-bottom:2px solid transparent;background:none;color:var(--muted);font:inherit;font-size:.92em;cursor:pointer;white-space:nowrap}
+.srctab:hover:not(:disabled){color:var(--fg)}
+.srctab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+.srctab .si{font-size:1.05em;line-height:1}
+.srctab .n{font-size:.82em;opacity:.7;font-weight:400}
+.srctab.empty{opacity:.45;cursor:default}
 .chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
 .chip{border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:.85em;color:var(--muted);cursor:pointer;background:var(--card);transition:all .12s;display:inline-flex;align-items:center;gap:5px}
 .chip:hover{border-color:var(--accent);color:var(--fg)}
@@ -179,7 +187,11 @@ a.gloss:hover{color:var(--accent)}
 <script>
 const $=s=>document.querySelector(s);
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
-let KEY=null, META=null, INDEX=[], CACHE={}, filterPub='', filterTopic='', q='';
+let KEY=null, META=null, INDEX=[], CACHE={}, filterPub='', filterTopic='', filterSource='', q='';
+/* 글의 출처. 나중에 X 등을 추가하면 여기에 한 줄만 더하면 탭이 생긴다.
+   순서대로 탭에 나오며, 글이 하나도 없는 출처는 흐리게 표시되고 눌리지 않는다. */
+const SOURCES=[{id:'substack',label:'Substack',icon:'📮'},{id:'x',label:'X',icon:'𝕏'}];
+const srcMeta=id=>SOURCES.find(s=>s.id===id)||{id,label:id,icon:'📄'};
 let GLOSS=[], GMAP={}, gq='';
 const TOPICS={
   "메모리·HBM":{e:"🧠",c:"#6366f1"}, "NVIDIA·AI 인프라":{e:"🟩",c:"#22c55e"},
@@ -257,11 +269,17 @@ $('#chatBtn').onclick=()=>{location.hash='#/chat';};
 /* ---- 목록 ---- */
 function showList(){
   $('#post').classList.add('hidden'); $('#gloss').classList.add('hidden'); $('#chat').classList.add('hidden'); $('#list').classList.remove('hidden'); $('#back').classList.add('hidden'); $('#orig').classList.add('hidden');
-  $('#barTitle').textContent=`번역 아카이브 · ${INDEX.length}편`;
-  const pubs=[...new Set(INDEX.map(a=>a.publication))];
-  const topics=[...new Set(INDEX.flatMap(a=>a.topics||[]))];
+  $('#barTitle').textContent=filterSource
+    ? `${srcMeta(filterSource).label} · ${INDEX.filter(a=>(a.source||'substack')===filterSource).length}편`
+    : `번역 아카이브 · ${INDEX.length}편`;
+  // 출처 탭 기준으로 좁힌 뒤 발행처·주제 목록을 만든다 (X 탭에서 Substack 발행처가 안 뜨도록)
+  const inSrc=INDEX.filter(a=>!filterSource||(a.source||'substack')===filterSource);
+  const srcCount={}; INDEX.forEach(a=>{const s=a.source||'substack'; srcCount[s]=(srcCount[s]||0)+1;});
+  const pubs=[...new Set(inSrc.map(a=>a.publication))];
+  const topics=[...new Set(inSrc.flatMap(a=>a.topics||[]))];
   const read=JSON.parse(localStorage.getItem('read')||'{}');
-  const items=INDEX.filter(a=>(!filterPub||a.publication===filterPub)
+  const items=INDEX.filter(a=>(!filterSource||(a.source||'substack')===filterSource)
+    &&(!filterPub||a.publication===filterPub)
     &&(!filterTopic||(a.topics||[]).includes(filterTopic))
     &&(!q||(a.title+a.subtitle+(a.tagline||'')+a.author+(a.topics||[]).join(' ')).toLowerCase().includes(q)));
   const card=a=>{const m=tmeta((a.topics&&a.topics[0])||'');
@@ -287,12 +305,21 @@ function showList(){
       <button class="tool" id="toolChat"><span class="ico">💬</span><span><span class="tt">챗봇에게 물어보기</span><span class="ts">${INDEX.length}편 전체에서 찾아 답하고 근거 문단까지 보여줍니다</span></span></button>
       <button class="tool" id="toolGloss"><span class="ico">📖</span><span><span class="tt">용어집 보기</span><span class="ts">${GLOSS.length?GLOSS.length+'개 ':''}어려운 개념을 그림과 함께 쉽게 풀었습니다</span></span></button>
     </div>
+    <div class="srctabs">
+      <button class="srctab ${!filterSource?'on':''}" data-s="">전체 <span class="n">${INDEX.length}</span></button>
+      ${SOURCES.map(s=>{const n=srcCount[s.id]||0;
+        return `<button class="srctab ${filterSource===s.id?'on':''} ${n?'':'empty'}" data-s="${n?s.id:''}" ${n?'':'disabled'}><span class="si">${s.icon}</span>${s.label} <span class="n">${n||'준비 중'}</span></button>`;}).join('')}
+    </div>
     <div class="searchwrap"><input id="q" placeholder="제목·주제·필자 검색" value="${q}"></div>
     <div class="chips"><span class="chip ${!filterTopic?'on':''}" data-t="">전체</span>${topics.map(t=>{const m=tmeta(t);return `<span class="chip ${filterTopic===t?'on':''}" data-t="${t}">${m.e} ${t}</span>`;}).join('')}</div>`+
     (pubs.length>1?`<div class="chips pubchips"><span class="chip ${!filterPub?'on':''}" data-p="">✍ 모든 발행처</span>${pubs.map(p=>`<span class="chip ${filterPub===p?'on':''}" data-p="${p}">${p}</span>`).join('')}</div>`:'')+
     (body||'<p class="hint">해당하는 글이 없습니다</p>');
   $('#toolChat').onclick=()=>showChat();
   $('#toolGloss').onclick=()=>showGloss();
+  document.querySelectorAll('.srctab[data-s]').forEach(b=>b.onclick=()=>{
+    if(b.disabled) return;
+    filterSource=b.dataset.s; filterPub=''; filterTopic=''; showList();   // 출처를 바꾸면 하위 필터는 초기화
+  });
   $('#q').oninput=e=>{q=e.target.value.toLowerCase();showList();$('#q').focus();$('#q').setSelectionRange(q.length,q.length);};
   document.querySelectorAll('.chip[data-t]').forEach(c=>c.onclick=()=>{filterTopic=c.dataset.t;showList();});
   document.querySelectorAll('.chip[data-p]').forEach(c=>c.onclick=()=>{filterPub=c.dataset.p;showList();});
