@@ -343,8 +343,10 @@ function showList(){
     <div class="chips"><span class="chip ${!filterTopic?'on':''}" data-t="">전체</span>${topics.map(t=>{const m=tmeta(t);return `<span class="chip ${filterTopic===t?'on':''}" data-t="${t}">${m.e} ${t}</span>`;}).join('')}</div>`+
     (pubs.length>1?`<div class="chips pubchips"><span class="chip ${!filterPub?'on':''}" data-p="">✍ 모든 발행처</span>${pubs.map(p=>`<span class="chip ${filterPub===p?'on':''}" data-p="${p}">${p}</span>`).join('')}</div>`:'')+
     (body||'<p class="hint">해당하는 글이 없습니다</p>');
-  $('#toolChat').onclick=()=>showChat();
-  $('#toolGloss').onclick=()=>showGloss();
+  // 주소(hash)를 거쳐야 route() 가 돌면서 '뒤로' 목적지가 잡힌다.
+  // 함수를 바로 부르면 hash 가 '' 인 채라 ← 목록 버튼이 먹지 않는다.
+  $('#toolChat').onclick=()=>{location.hash='#/chat';};
+  $('#toolGloss').onclick=()=>{location.hash='#/glossary';};
   document.querySelectorAll('.srctab[data-s]').forEach(b=>b.onclick=()=>{
     if(b.disabled) return;
     filterSource=b.dataset.s; filterPub=''; filterTopic=''; showList();   // 출처를 바꾸면 하위 필터는 초기화
@@ -464,7 +466,11 @@ function showGloss(targetId){
   }else window.scrollTo(0,0);
 }
 // '← ' 버튼: 각 화면의 직전 위치(viewBack)로
-$('#back').onclick=()=>{ location.hash=viewBack||''; };
+$('#back').onclick=()=>{
+  const t=viewBack||'';
+  if((location.hash||'')===t) route();      // hash 가 그대로면 hashchange 가 안 뜬다 — 직접 그린다
+  else location.hash=t;
+};
 
 /* ---- 챗봇 (아티클 기반 검색형) ---- */
 const esc=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
