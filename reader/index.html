@@ -149,6 +149,21 @@ a.gloss:hover{color:var(--accent)}
 .blk.srchl>.ko{background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:6px;transition:background .4s}
 /* ---- 이미지 확대(라이트박스) ---- */
 #post img{cursor:zoom-in}
+/* X 글 토글 (시간순으로 쌓이는 짧은 글 묶음) */
+#post details.xpost{border:1px solid var(--line);border-radius:10px;margin:0 0 10px;background:var(--card);overflow:hidden}
+#post details.xpost[open]{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+#post details.xpost>summary{list-style:none;cursor:pointer;padding:13px 16px;display:flex;align-items:baseline;gap:10px;font-size:.96em;line-height:1.45}
+#post details.xpost>summary::-webkit-details-marker{display:none}
+#post details.xpost>summary::before{content:'▸';color:var(--accent);flex:none;transition:transform .15s}
+#post details.xpost[open]>summary::before{transform:rotate(90deg)}
+#post details.xpost>summary:hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+#post details.xpost>summary b{font-weight:600}
+#post .xtime{margin-left:auto;flex:none;font-size:.82em;color:var(--muted);font-variant-numeric:tabular-nums}
+#post .xbody{padding:2px 16px 14px;border-top:1px solid var(--line)}
+#post .xbody>*:first-child{margin-top:12px}
+#post .xcap{font-size:.84em;color:var(--muted);margin:-8px 0 14px;line-height:1.5}
+#post .xsrc{margin:14px 0 0;font-size:.84em}
+#post .xsrc a{color:var(--muted)}#post .xsrc a:hover{color:var(--accent)}
 #lightbox{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}
 #lightbox img{max-width:100%;max-height:100%;height:auto;width:auto;border-radius:6px;box-shadow:0 12px 48px rgba(0,0,0,.6)}
 #lightbox .lbclose{position:fixed;top:12px;right:16px;color:#fff;font-size:1.7em;line-height:1;cursor:pointer;background:none;border:0;padding:8px;opacity:.85}
@@ -260,6 +275,7 @@ function route(){
   const m=location.hash.match(/^#\/p\/([^~]+)(?:~b(\d+))?$/);
   const from=prevHash;   // 이 화면으로 오기 직전 위치
   if(from.startsWith('#/p/')){ postScrollY=window.scrollY; postScrollSlug=currentPostSlug; }   // 글에서 벗어날 때 읽던 위치 저장
+  if(from==='' || from==='#'){ listScrollY=window.scrollY; }   // 목록을 떠날 때 보던 위치 저장
   if(g){ viewBack=from.startsWith('#/p/')||from==='#/chat'?from:''; showGloss(decodeURIComponent(g[1])); }
   else if(gl){ viewBack=from.startsWith('#/p/')||from==='#/chat'?from:''; showGloss(); }
   else if(c){ viewBack=''; showChat(); }
@@ -271,11 +287,20 @@ $('#glossBtn').onclick=()=>{location.hash='#/glossary';};
 $('#chatBtn').onclick=()=>{location.hash='#/chat';};
 
 /* ---- 목록 ---- */
+let listKey=null, listScrollY=0;   // 목록 화면을 기억해 두고 그대로 되살린다
 function showList(){
   $('#post').classList.add('hidden'); $('#gloss').classList.add('hidden'); $('#chat').classList.add('hidden'); $('#list').classList.remove('hidden'); $('#back').classList.add('hidden'); $('#orig').classList.add('hidden');
   $('#barTitle').textContent=filterSource
     ? `${srcMeta(filterSource).label} · ${INDEX.filter(a=>(a.source||'substack')===filterSource).length}편`
     : `번역 아카이브 · ${INDEX.length}편`;
+  // 조건이 그대로면 수백 장의 카드를 다시 그리지 않고 있던 화면을 그대로 쓴다
+  const readRaw=localStorage.getItem('read')||'{}';
+  const key=[filterSource,filterPub,filterTopic,q,INDEX.length,readRaw.length].join('');
+  if(key===listKey && $('#list').children.length){
+    window.scrollTo(0,listScrollY);
+    return;
+  }
+  listKey=key; listScrollY=0;
   // 출처 탭 기준으로 좁힌 뒤 발행처·주제 목록을 만든다 (X 탭에서 Substack 발행처가 안 뜨도록)
   const inSrc=INDEX.filter(a=>!filterSource||(a.source||'substack')===filterSource);
   const srcCount={}; INDEX.forEach(a=>{const s=a.source||'substack'; srcCount[s]=(srcCount[s]||0)+1;});
@@ -406,12 +431,23 @@ function autoLinkGloss(root){
 $('#toggleEn').onclick=()=>{document.body.classList.toggle('showen');$('#toggleEn').classList.toggle('on');};
 
 /* ---- 용어집 화면 ---- */
+let glossKey=null;
 function showGloss(targetId){
   $('#list').classList.add('hidden'); $('#post').classList.add('hidden'); $('#gloss').classList.remove('hidden');
   $('#back').classList.remove('hidden'); $('#orig').classList.add('hidden');
   $('#back').textContent=backLabel(viewBack);
   $('#barTitle').textContent='용어집';
   if(!GLOSS.length){ $('#gloss').innerHTML='<p class="hint">용어집이 아직 없습니다</p>'; return; }
+  // 검색어가 그대로면 항목 수백 개를 다시 그리지 않는다 (도해 SVG 때문에 특히 무겁다)
+  if(glossKey===gq && $('#gloss').children.length){
+    if(targetId){
+      const el=$('#g-'+CSS.escape(targetId));
+      if(el){ el.scrollIntoView({block:'center'}); el.classList.add('hl'); setTimeout(()=>el.classList.remove('hl'),2000); }
+      else window.scrollTo(0,0);
+    }else window.scrollTo(0,0);
+    return;
+  }
+  glossKey=gq;
   const items=GLOSS.filter(g=>!gq||((g.term+g.def+(g.match||[]).join(' ')).toLowerCase().includes(gq)));
   const cats=[...new Set(items.map(g=>g.cat||'기타'))];
   const body=cats.map(c=>`<div class="gcat">${c}</div>`+
