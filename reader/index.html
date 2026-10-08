@@ -35,7 +35,7 @@ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 .bar button.key{background:color-mix(in srgb,var(--accent) 12%,var(--card));border-color:color-mix(in srgb,var(--accent) 45%,var(--line));color:var(--accent);font-weight:700}
 .bar button.key:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 /* 목록 맨 위 진입 카드 */
-.tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 18px}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:10px;margin:14px 0 18px}
 .tool{display:flex;gap:11px;align-items:center;text-align:left;width:100%;padding:13px 14px;border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--accent) 7%,var(--card));color:var(--fg);cursor:pointer;font:inherit}
 .tool:hover{background:color-mix(in srgb,var(--accent) 14%,var(--card));border-color:var(--accent);transform:translateY(-1px)}
 .tool .ico{font-size:1.5em;line-height:1;flex:none}
@@ -147,27 +147,51 @@ a.gloss:hover{color:var(--accent)}
 .chatbar input{flex:1;padding:11px 14px;font-size:1em;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg)}
 .chatbar button{border:0;border-radius:10px;background:var(--accent);color:#fff;padding:0 18px;font-size:1em;cursor:pointer}
 .blk.srchl>.ko{background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:6px;transition:background .4s}
+
 /* ---- 이미지 확대(라이트박스) ---- */
 #post img{cursor:zoom-in}
 /* X 글 토글 (시간순으로 쌓이는 짧은 글 묶음) */
-#post details.xpost{border:1px solid var(--line);border-radius:10px;margin:0 0 10px;background:var(--card);overflow:hidden}
-#post details.xpost[open]{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
-#post details.xpost>summary{list-style:none;cursor:pointer;padding:13px 16px;display:flex;align-items:baseline;gap:10px;font-size:.96em;line-height:1.45}
-#post details.xpost>summary::-webkit-details-marker{display:none}
-#post details.xpost>summary::before{content:'▸';color:var(--accent);flex:none;transition:transform .15s}
-#post details.xpost[open]>summary::before{transform:rotate(90deg)}
-#post details.xpost>summary:hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}
-#post details.xpost>summary b{font-weight:600}
-#post .xtime{margin-left:auto;flex:none;font-size:.82em;color:var(--muted);font-variant-numeric:tabular-nums}
-#post .xbody{padding:2px 16px 14px;border-top:1px solid var(--line)}
-#post .xbody>*:first-child{margin-top:12px}
-#post .xcap{font-size:.84em;color:var(--muted);margin:-8px 0 14px;line-height:1.5}
-#post .xsrc{margin:14px 0 0;font-size:.84em}
-#post .xsrc a{color:var(--muted)}#post .xsrc a:hover{color:var(--accent)}
+:is(#post,#xfeed) details.xpost{border:1px solid var(--line);border-radius:10px;margin:0 0 10px;background:var(--card);overflow:hidden}
+:is(#post,#xfeed) details.xpost[open]{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+:is(#post,#xfeed) details.xpost>summary{list-style:none;cursor:pointer;padding:13px 16px;display:flex;align-items:baseline;gap:10px;font-size:.96em;line-height:1.45}
+:is(#post,#xfeed) details.xpost>summary::-webkit-details-marker{display:none}
+:is(#post,#xfeed) details.xpost>summary::before{content:'▸';color:var(--accent);flex:none;transition:transform .15s}
+:is(#post,#xfeed) details.xpost[open]>summary::before{transform:rotate(90deg)}
+:is(#post,#xfeed) details.xpost>summary:hover{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+:is(#post,#xfeed) details.xpost>summary b{font-weight:600}
+:is(#post,#xfeed) .xtime{margin-left:auto;flex:none;font-size:.82em;color:var(--muted);font-variant-numeric:tabular-nums}
+:is(#post,#xfeed) .xbody{padding:2px 16px 14px;border-top:1px solid var(--line)}
+:is(#post,#xfeed) .xbody>*:first-child{margin-top:12px}
+:is(#post,#xfeed) .xcap{font-size:.84em;color:var(--muted);margin:-8px 0 14px;line-height:1.5}
+:is(#post,#xfeed) .xsrc{margin:14px 0 0;font-size:.84em}
+:is(#post,#xfeed) .xsrc a{color:var(--muted)}:is(#post,#xfeed) .xsrc a:hover{color:var(--accent)}
 #lightbox{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}
 #lightbox img{max-width:100%;max-height:100%;height:auto;width:auto;border-radius:6px;box-shadow:0 12px 48px rgba(0,0,0,.6)}
 #lightbox .lbclose{position:fixed;top:12px;right:16px;color:#fff;font-size:1.7em;line-height:1;cursor:pointer;background:none;border:0;padding:8px;opacity:.85}
 #lightbox .lbclose:hover{opacity:1}
+
+/* ── X 피드 화면 ── */
+#xfeed{max-width:780px;margin:0 auto}
+#xfeed .xhead{margin:4px 0 14px}
+#xfeed .xhead h1{font-size:1.5em;margin:0 0 6px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+#xfeed .xhead p{margin:0;color:var(--muted);font-size:.92em;line-height:1.6}
+.newbadge{font-size:.62em;font-weight:700;padding:3px 8px;border-radius:999px;background:#ef4444;color:#fff;letter-spacing:.02em}
+#xfeed .xctl{display:flex;gap:8px;align-items:center;margin:0 0 16px;flex-wrap:wrap}
+#xfeed .xctl input{flex:1;min-width:190px;padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--fg);font:inherit}
+#xfeed .xctl button{padding:9px 13px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--muted);font:inherit;font-size:.88em;cursor:pointer;white-space:nowrap}
+#xfeed .xctl button:hover{color:var(--accent);border-color:var(--accent)}
+#xfeed .xday{position:sticky;top:48px;z-index:3;display:flex;align-items:center;gap:9px;margin:22px 0 9px;padding:7px 2px;background:var(--bg);border-bottom:1px solid var(--line);font-weight:700;font-size:.96em}
+#xfeed .xday .cnt{font-weight:400;font-size:.84em;color:var(--muted)}
+#xfeed .xday a{margin-left:auto;font-weight:400;font-size:.82em;color:var(--muted);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+#xfeed .xday a:hover{color:var(--accent);border-color:var(--accent)}
+#xfeed details.xpost.isnew>summary b::after{content:'NEW';margin-left:7px;font-size:.6em;font-weight:700;vertical-align:2px;color:#ef4444;letter-spacing:.03em}
+#xfeed .xmore{display:block;width:100%;margin:20px 0 8px;padding:13px;border:1px dashed var(--line);border-radius:10px;background:none;color:var(--muted);font:inherit;cursor:pointer}
+#xfeed .xmore:hover{color:var(--accent);border-color:var(--accent)}
+#xfeed .xempty{color:var(--muted);padding:20px 2px}
+#xfeed figure{margin:1.3em 0}#xfeed img{width:100%;height:auto;border-radius:8px;display:block;cursor:zoom-in}
+#xfeed table{border-collapse:collapse;width:100%;font-size:.88em;margin:1.1em 0;display:block;overflow-x:auto}
+#xfeed th,#xfeed td{border:1px solid var(--line);padding:6px 9px;text-align:left}
+#xfeed th{background:color-mix(in srgb,var(--accent) 8%,transparent)}
 </style>
 </head>
 <body>
@@ -200,6 +224,7 @@ a.gloss:hover{color:var(--accent)}
   <div id="post" class="hidden"></div>
   <div id="gloss" class="hidden"></div>
   <div id="chat" class="hidden"></div>
+  <div id="xfeed" class="hidden"></div>
   <div id="lightbox" class="hidden"><button class="lbclose" title="닫기">✕</button><img alt=""></div>
 </div>
 
@@ -221,6 +246,11 @@ const TOPICS={
 };
 const tmeta=t=>TOPICS[t]||{e:"📄",c:"#94a3b8"};
 let CORPUS=[], CHAT=[], pendingBlock=null;
+/* X 피드: 하루 글 안의 토글 전체를 시간순 한 줄 피드로 훑는 화면.
+   XFEED 는 제목·시각·검색용 텍스트만 든 가벼운 인덱스이고,
+   본문은 펼칠 때 그날 글(posts/<slug>.enc)에서 꺼내 쓴다(XDAY 에 캐시). */
+let XFEED=[], XDAY={}, xq='', xShown=0, xfeedKey=null, xfeedScrollY=0, xNewCount=0, xSeenAt='';
+const XPAGE=60;
 /* 챗봇 생성모드 백엔드 주소.
    로컬(chat_proxy.py)에서 열었으면 같은 서버의 api/chat, 그 밖에서는 Cloudflare Worker.
    Worker 를 아직 배포하지 않았으면 호출이 실패하고 무료 검색형으로 자동 폴백한다. */
@@ -253,6 +283,9 @@ async function unlock(code){
   if(META.search){
     try{ CORPUS=await decrypt(await fetchText('search.enc')); }catch(e){ CORPUS=[]; }
   }
+  if(META.xfeed){
+    try{ XFEED=await decrypt(await fetchText('xfeed.enc')); }catch(e){ XFEED=[]; }
+  }
 }
 $('#gateForm').addEventListener('submit',async e=>{
   e.preventDefault(); $('#err').textContent='';
@@ -267,19 +300,22 @@ $('#lock').onclick=()=>{localStorage.removeItem('rc');sessionStorage.removeItem(
 
 function enter(){ $('#gate').classList.add('hidden'); $('#app').classList.remove('hidden'); route(); }
 window.addEventListener('hashchange',route);
-function backLabel(h){ return h.startsWith('#/p/')?'← 글로':h==='#/chat'?'← 챗봇':h==='#/glossary'?'← 용어집':'← 목록'; }
+function backLabel(h){ return h.startsWith('#/p/')?'← 글로':h==='#/chat'?'← 챗봇':h==='#/glossary'?'← 용어집':h==='#/x'?'← 피드':'← 목록'; }
 function route(){
   const g=location.hash.match(/^#\/g\/(.+)$/);
   const gl=location.hash.match(/^#\/glossary$/);
   const c=location.hash.match(/^#\/chat$/);
+  const xf=location.hash.match(/^#\/x$/);
   const m=location.hash.match(/^#\/p\/([^~]+)(?:~b(\d+))?$/);
   const from=prevHash;   // 이 화면으로 오기 직전 위치
   if(from.startsWith('#/p/')){ postScrollY=window.scrollY; postScrollSlug=currentPostSlug; }   // 글에서 벗어날 때 읽던 위치 저장
   if(from==='' || from==='#'){ listScrollY=window.scrollY; }   // 목록을 떠날 때 보던 위치 저장
+  if(from==='#/x'){ xfeedScrollY=window.scrollY; }              // 피드를 떠날 때 보던 위치 저장
   if(g){ viewBack=from.startsWith('#/p/')||from==='#/chat'?from:''; showGloss(decodeURIComponent(g[1])); }
   else if(gl){ viewBack=from.startsWith('#/p/')||from==='#/chat'?from:''; showGloss(); }
   else if(c){ viewBack=''; showChat(); }
-  else if(m){ viewBack=from==='#/chat'?'#/chat':''; pendingBlock=m[2]!==undefined?parseInt(m[2]):null; openPost(decodeURIComponent(m[1])); }
+  else if(xf){ viewBack=''; showXFeed(); }
+  else if(m){ viewBack=(from==='#/chat'||from==='#/x')?from:''; pendingBlock=m[2]!==undefined?parseInt(m[2]):null; openPost(decodeURIComponent(m[1])); }
   else { viewBack=''; showList(); }
   prevHash=location.hash;
 }
@@ -289,13 +325,13 @@ $('#chatBtn').onclick=()=>{location.hash='#/chat';};
 /* ---- 목록 ---- */
 let listKey=null, listScrollY=0;   // 목록 화면을 기억해 두고 그대로 되살린다
 function showList(){
-  $('#post').classList.add('hidden'); $('#gloss').classList.add('hidden'); $('#chat').classList.add('hidden'); $('#list').classList.remove('hidden'); $('#back').classList.add('hidden'); $('#orig').classList.add('hidden');
+  $('#post').classList.add('hidden'); $('#gloss').classList.add('hidden'); $('#chat').classList.add('hidden'); $('#xfeed').classList.add('hidden'); $('#list').classList.remove('hidden'); $('#back').classList.add('hidden'); $('#orig').classList.add('hidden');
   $('#barTitle').textContent=filterSource
     ? `${srcMeta(filterSource).label} · ${INDEX.filter(a=>(a.source||'substack')===filterSource).length}편`
     : `번역 아카이브 · ${INDEX.length}편`;
   // 조건이 그대로면 수백 장의 카드를 다시 그리지 않고 있던 화면을 그대로 쓴다
   const readRaw=localStorage.getItem('read')||'{}';
-  const key=[filterSource,filterPub,filterTopic,q,INDEX.length,readRaw.length].join('');
+  const key=[filterSource,filterPub,filterTopic,q,INDEX.length,readRaw.length,localStorage.getItem('xseen')||''].join('');
   if(key===listKey && $('#list').children.length){
     window.scrollTo(0,listScrollY);
     return;
@@ -333,6 +369,7 @@ function showList(){
     <div class="tools">
       <button class="tool" id="toolChat"><span class="ico">💬</span><span><span class="tt">챗봇에게 물어보기</span><span class="ts">${INDEX.length}편 전체에서 찾아 답하고 근거 문단까지 보여줍니다</span></span></button>
       <button class="tool" id="toolGloss"><span class="ico">📖</span><span><span class="tt">용어집 보기</span><span class="ts">${GLOSS.length?GLOSS.length+'개 ':''}어려운 개념을 그림과 함께 쉽게 풀었습니다</span></span></button>
+      ${XFEED.length?`<button class="tool" id="toolX"><span class="ico">𝕏</span><span><span class="tt">X 피드 보기${xUnseen()?` <span class="newbadge">새 글 ${xUnseen()}</span>`:''}</span><span class="ts">${(XFEED[0]&&XFEED[0].pub)||'X'} ${XFEED.length}건을 시간순으로 한 번에 훑습니다</span></span></button>`:''}
     </div>
     <div class="srctabs">
       <button class="srctab ${!filterSource?'on':''}" data-s="">전체 <span class="n">${INDEX.length}</span></button>
@@ -347,8 +384,11 @@ function showList(){
   // 함수를 바로 부르면 hash 가 '' 인 채라 ← 목록 버튼이 먹지 않는다.
   $('#toolChat').onclick=()=>{location.hash='#/chat';};
   $('#toolGloss').onclick=()=>{location.hash='#/glossary';};
+  if($('#toolX')) $('#toolX').onclick=()=>{location.hash='#/x';};
   document.querySelectorAll('.srctab[data-s]').forEach(b=>b.onclick=()=>{
     if(b.disabled) return;
+    // X 는 하루 글 안에 포스트가 수십 개씩 들어 있어 카드 목록이 아니라 피드로 보낸다
+    if(b.dataset.s==='x' && XFEED.length){ location.hash='#/x'; return; }
     filterSource=b.dataset.s; filterPub=''; filterTopic=''; showList();   // 출처를 바꾸면 하위 필터는 초기화
   });
   $('#q').oninput=e=>{q=e.target.value.toLowerCase();showList();$('#q').focus();$('#q').setSelectionRange(q.length,q.length);};
@@ -361,7 +401,7 @@ function showList(){
 async function openPost(slug){
   const meta=INDEX.find(a=>a.slug===slug); if(!meta){location.hash='';return;}
   currentPostSlug=slug;
-  $('#list').classList.add('hidden'); $('#gloss').classList.add('hidden'); $('#chat').classList.add('hidden'); $('#post').classList.remove('hidden'); $('#back').classList.remove('hidden');
+  $('#list').classList.add('hidden'); $('#gloss').classList.add('hidden'); $('#chat').classList.add('hidden'); $('#xfeed').classList.add('hidden'); $('#post').classList.remove('hidden'); $('#back').classList.remove('hidden');
   $('#back').textContent=backLabel(viewBack);
   $('#barTitle').textContent=meta.title; $('#post').innerHTML='<p class="hint">불러오는 중…</p>';
   try{ CACHE[slug]=CACHE[slug]||await decrypt(await fetchText(`posts/${slug}.enc`)); }
@@ -435,7 +475,7 @@ $('#toggleEn').onclick=()=>{document.body.classList.toggle('showen');$('#toggleE
 /* ---- 용어집 화면 ---- */
 let glossKey=null;
 function showGloss(targetId){
-  $('#list').classList.add('hidden'); $('#post').classList.add('hidden'); $('#gloss').classList.remove('hidden');
+  $('#list').classList.add('hidden'); $('#post').classList.add('hidden'); $('#chat').classList.add('hidden'); $('#xfeed').classList.add('hidden'); $('#gloss').classList.remove('hidden');
   $('#back').classList.remove('hidden'); $('#orig').classList.add('hidden');
   $('#back').textContent=backLabel(viewBack);
   $('#barTitle').textContent='용어집';
@@ -579,7 +619,7 @@ function genAnswerHTML(text, sources, terms, streaming){
 }
 const STARTERS=["HBM이 뭐야?","NVHBM이 왜 중요해?","첨단 패키징이 왜 중요해?","CPO가 뭐야?","지금 메모리에서 뭘 봐야 해?"];
 function showChat(){
-  $('#list').classList.add('hidden'); $('#post').classList.add('hidden'); $('#gloss').classList.add('hidden'); $('#chat').classList.remove('hidden');
+  $('#list').classList.add('hidden'); $('#post').classList.add('hidden'); $('#gloss').classList.add('hidden'); $('#xfeed').classList.add('hidden'); $('#chat').classList.remove('hidden');
   $('#back').classList.remove('hidden'); $('#orig').classList.add('hidden'); $('#back').textContent='← 목록';
   $('#barTitle').textContent='챗봇';
   renderChat();
@@ -634,11 +674,101 @@ const applyFs=()=>{document.documentElement.style.setProperty('--fs',fs+'px');lo
 $('#fsUp').onclick=()=>{fs=Math.min(26,fs+1);applyFs();}; $('#fsDown').onclick=()=>{fs=Math.max(14,fs-1);applyFs();}; applyFs();
 window.addEventListener('scroll',()=>{const h=document.documentElement;const p=h.scrollHeight-h.clientHeight;$('#prog').style.width=(p>0?h.scrollTop/p*100:0)+'%';},{passive:true});
 
+/* ---- X 피드 화면 ----
+   하루 글 1편 안에 포스트 수십 개가 토글로 들어 있다. 날짜 카드를 하나씩 열지 않고
+   전체를 시간순 한 줄로 훑게 만든 화면. 본문은 펼칠 때 그날 글에서 꺼내 온다. */
+const xKey=r=>r.d+' '+r.t+'#'+r.i;
+function xUnseen(){ const s=localStorage.getItem('xseen')||''; return XFEED.filter(r=>xKey(r)>s).length; }
+function xNewSince(){ return localStorage.getItem('xseen')||''; }
+function xMarkSeen(){ if(XFEED.length) localStorage.setItem('xseen', xKey(XFEED[0])); }
+
+function showXFeed(){
+  $('#list').classList.add('hidden'); $('#post').classList.add('hidden');
+  $('#gloss').classList.add('hidden'); $('#chat').classList.add('hidden');
+  $('#xfeed').classList.remove('hidden');
+  $('#back').classList.remove('hidden'); $('#back').textContent=backLabel(viewBack);
+  $('#orig').classList.add('hidden');
+  const pub=(XFEED[0]&&XFEED[0].pub)||'X';
+  $('#barTitle').textContent=`𝕏 ${pub} 피드`;
+  // 같은 검색어면 다시 그리지 않고 보던 자리로 되돌린다
+  const key=xq+'|'+XFEED.length;
+  if(key===xfeedKey && $('#xfeed').children.length){ window.scrollTo(0,xfeedScrollY); return; }
+  xfeedKey=key; xShown=XPAGE;
+  // 이번 방문에 들어온 순간을 기준선으로 고정한다.
+  // 바로 아래에서 '읽음' 선을 옮기지만, 이 화면에 있는 동안은 NEW 표시가 그대로 남는다.
+  xSeenAt=xNewSince();
+  xNewCount=XFEED.filter(r=>xKey(r)>xSeenAt).length;
+  renderXFeed();
+  window.scrollTo(0,0);
+  xMarkSeen();   // 이번 방문 기준으로 '읽음' 선을 옮긴다 (NEW 표시는 이번 화면에선 유지)
+}
+
+function xFiltered(){
+  if(!xq) return XFEED;
+  const ws=xq.split(/\s+/).filter(Boolean);
+  return XFEED.filter(r=>{ const hay=(r.ti+' '+r.x).toLowerCase(); return ws.every(w=>hay.includes(w)); });
+}
+
+function renderXFeed(){
+  const rows=xFiltered(), seen=xSeenAt, shown=rows.slice(0,xShown);
+  const daySlug={}; XFEED.forEach(r=>daySlug[r.d]=r.s);
+  let body='', curDay='';
+  const byDay={}; shown.forEach(r=>{ (byDay[r.d]=byDay[r.d]||[]).push(r); });
+  for(const d of Object.keys(byDay)){
+    const arr=byDay[d];
+    body+=`<div class="xday">${d}<span class="cnt">${arr.length}건</span>`
+       +`<a href="#/p/${encodeURIComponent(daySlug[d])}">그날 요약 ↗</a></div>`;
+    body+=arr.map(r=>`<details class="xpost ${xKey(r)>seen?'isnew':''}" data-s="${r.s}" data-i="${r.i}">`
+      +`<summary><b>${esc(r.ti)}</b> <span class="xtime">${r.t}</span></summary>`
+      +`<div class="xbody"><p class="hint">불러오는 중…</p></div></details>`).join('');
+  }
+  const more=rows.length>xShown
+    ? `<button class="xmore">아래로 ${Math.min(XPAGE,rows.length-xShown)}건 더 보기 (남은 ${rows.length-xShown}건)</button>` : '';
+  $('#xfeed').innerHTML=`
+    <div class="xhead">
+      <h1>𝕏 ${esc((XFEED[0]&&XFEED[0].pub)||'X')} 피드
+        ${xNewCount?`<span class="newbadge">새 글 ${xNewCount}</span>`:''}</h1>
+      <p>${XFEED.length}건을 시간순으로 모았습니다. 제목을 누르면 번역 전문과 이미지 리포트가 펼쳐집니다.</p>
+    </div>
+    <div class="xctl">
+      <input id="xq" placeholder="제목·본문 검색 (띄어쓰기로 여러 단어)" value="${esc(xq)}">
+      <button id="xAllOpen">전체 펼치기</button>
+      <button id="xAllShut">전체 접기</button>
+    </div>`
+    +(rows.length?body+more:'<p class="xempty">검색 결과가 없습니다</p>');
+  const qi=$('#xq');
+  qi.oninput=e=>{ xq=e.target.value.toLowerCase(); xShown=XPAGE; xfeedKey=xq+'|'+XFEED.length;
+    renderXFeed(); const n=$('#xq'); n.focus(); n.setSelectionRange(xq.length,xq.length); };
+  $('#xAllOpen').onclick=()=>document.querySelectorAll('#xfeed details.xpost').forEach(d=>{d.open=true;xLoad(d);});
+  $('#xAllShut').onclick=()=>document.querySelectorAll('#xfeed details.xpost').forEach(d=>d.open=false);
+  const mb=$('#xfeed .xmore');
+  if(mb) mb.onclick=()=>{ xShown+=XPAGE; const y=window.scrollY; renderXFeed(); window.scrollTo(0,y); };
+  document.querySelectorAll('#xfeed details.xpost').forEach(d=>{
+    d.addEventListener('toggle',()=>{ if(d.open) xLoad(d); });
+  });
+}
+
+/* 토글을 펼칠 때 그날 글을 복호화해 해당 포스트 본문만 꺼내 넣는다 */
+async function xLoad(d){
+  if(d.dataset.done) return;
+  d.dataset.done='1';
+  const slug=d.dataset.s, i=+d.dataset.i, box=d.querySelector('.xbody');
+  try{
+    XDAY[slug]=XDAY[slug]||CACHE[slug]||await decrypt(await fetchText(`posts/${slug}.enc`));
+    CACHE[slug]=XDAY[slug];
+    const ko=(XDAY[slug].blocks[i]||{}).ko||'';
+    const inner=ko.split('</summary>')[1]||'';
+    const m=inner.match(/<div class="xbody">([\s\S]*)<\/div>\s*<\/details>\s*$/);
+    box.innerHTML=m?m[1]:inner.replace(/<\/?details[^>]*>/g,'');
+    resetGlossUsage(); autoLinkGloss(box);
+  }catch(e){ box.innerHTML='<p class="hint">본문을 불러오지 못했습니다</p>'; d.dataset.done=''; }
+}
+
 /* ---- 이미지 확대(라이트박스) ---- */
 const lb=$('#lightbox'), lbimg=lb.querySelector('img');
 function closeLb(){ lb.classList.add('hidden'); lbimg.removeAttribute('src'); }
 document.addEventListener('click',e=>{
-  const img=e.target.closest('#post img');
+  const img=e.target.closest('#post img, #xfeed img');
   if(img){ lbimg.src=img.src; lb.classList.remove('hidden'); }
 });
 lb.addEventListener('click',closeLb);
